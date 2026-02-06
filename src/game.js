@@ -94,43 +94,166 @@ export function startGame(container, navigate, totalRounds) {
 
   const leafer = new Leafer({ view: document.getElementById('game-canvas'), width: cw, height: ch, fill: 'transparent' })
 
-  // 绘制喜庆底纹装饰（散落的金色小圆点）
-  for (let i = 0; i < 40; i++) {
+  // 绘制喜庆底纹装饰（散落的金色小圆点 + 星光）
+  for (let i = 0; i < 50; i++) {
     const rx = Math.random() * cw, ry = Math.random() * ch
-    leafer.add(new Ellipse({ x: rx, y: ry, width: 4 + Math.random() * 4, height: 4 + Math.random() * 4, fill: `rgba(255,215,0,${0.03 + Math.random() * 0.06})` }))
+    const size = 3 + Math.random() * 5
+    leafer.add(new Ellipse({ x: rx, y: ry, width: size, height: size,
+      fill: `rgba(255,215,0,${0.02 + Math.random() * 0.06})`,
+      shadow: { x: 0, y: 0, blur: 4 + Math.random() * 6, color: `rgba(255,215,0,${0.03 + Math.random() * 0.05})` }
+    }))
   }
+  // 棋盘区域底部柔光
+  leafer.add(new Rect({
+    x: sx - 30, y: sy - 30, width: boardW + 60, height: boardH + 60,
+    fill: { type: 'radial', stops: [
+      { offset: 0, color: 'rgba(139,0,0,0.08)' },
+      { offset: 0.6, color: 'rgba(139,0,0,0.03)' },
+      { offset: 1, color: 'rgba(0,0,0,0)' },
+    ]},
+    cornerRadius: 30
+  }))
 
-  // 绘制连接线（路径指引 - 金色虚线风格）
+  // 绘制连接线（路径指引 - 华丽金色光带）
   for (let i = 0; i < BOARD_SIZE; i++) {
     const a = tilePos[i], b = tilePos[(i + 1) % BOARD_SIZE]
     const ax = a.x + TILE_W / 2, ay = a.y + TILE_W / 2, bx = b.x + TILE_W / 2, by = b.y + TILE_W / 2
-    leafer.add(new Rect({ x: Math.min(ax, bx) - 2, y: Math.min(ay, by) - 2, width: Math.abs(bx - ax) + 4 || 4, height: Math.abs(by - ay) + 4 || 4, fill: 'rgba(255,215,0,0.1)', cornerRadius: 2 }))
+    // 外层光晕
+    leafer.add(new Rect({ x: Math.min(ax, bx) - 4, y: Math.min(ay, by) - 4, width: Math.abs(bx - ax) + 8 || 8, height: Math.abs(by - ay) + 8 || 8,
+      fill: 'rgba(255,215,0,0.04)', cornerRadius: 4 }))
+    // 主光带
+    leafer.add(new Rect({ x: Math.min(ax, bx) - 1.5, y: Math.min(ay, by) - 1.5, width: Math.abs(bx - ax) + 3 || 3, height: Math.abs(by - ay) + 3 || 3,
+      fill: { type: 'linear', stops: ['rgba(255,215,0,0.06)', 'rgba(255,215,0,0.18)', 'rgba(255,215,0,0.06)'] }, cornerRadius: 2 }))
   }
 
-  // 绘制格子 - 喜庆新春配色
+  // 绘制格子 - 华丽喜庆新春配色
   const tileColors = {
-    normal: { f: '#2a0a0a', s: '#c0392b', glow: 'rgba(192,57,43,0.15)' },
-    start:  { f: '#3a1a00', s: '#ffd700', glow: 'rgba(255,215,0,0.2)' },
-    event:  { f: '#3a1500', s: '#e67e22', glow: 'rgba(230,126,34,0.15)' },
-    npc:    { f: '#2a0020', s: '#e84393', glow: 'rgba(232,67,147,0.15)' },
+    normal: {
+      grad1: '#3a0e0e', grad2: '#1e0505', s: '#c0392b', s2: '#e74c3c',
+      glow: 'rgba(192,57,43,0.2)', glowOuter: 'rgba(192,57,43,0.08)',
+      innerGlow: 'rgba(255,100,80,0.06)', highlight: 'rgba(255,180,150,0.12)',
+      icon: '', label: '',
+    },
+    start: {
+      grad1: '#4a2000', grad2: '#2a0e00', s: '#ffd700', s2: '#ffe44d',
+      glow: 'rgba(255,215,0,0.25)', glowOuter: 'rgba(255,215,0,0.1)',
+      innerGlow: 'rgba(255,215,0,0.08)', highlight: 'rgba(255,245,180,0.18)',
+      icon: '🧧', label: '起点',
+    },
+    event: {
+      grad1: '#4a1e00', grad2: '#2a0f00', s: '#e67e22', s2: '#f39c12',
+      glow: 'rgba(230,126,34,0.22)', glowOuter: 'rgba(230,126,34,0.08)',
+      innerGlow: 'rgba(255,180,80,0.07)', highlight: 'rgba(255,220,160,0.15)',
+      icon: '🎁', label: '事件',
+    },
+    npc: {
+      grad1: '#3a0030', grad2: '#1e0018', s: '#e84393', s2: '#fd79a8',
+      glow: 'rgba(232,67,147,0.22)', glowOuter: 'rgba(232,67,147,0.08)',
+      innerGlow: 'rgba(255,120,180,0.07)', highlight: 'rgba(255,180,220,0.15)',
+      icon: '🤝', label: 'NPC',
+    },
   }
 
   tilePos.forEach((pos, i) => {
     const type = getTileType(i)
     const c = tileColors[type] || tileColors.normal
-    // 外发光效果
-    leafer.add(new Rect({ x: pos.x - 3, y: pos.y - 3, width: TILE_W + 6, height: TILE_W + 6, fill: c.glow, cornerRadius: 14 }))
-    // 格子主体
-    leafer.add(new Rect({ x: pos.x, y: pos.y, width: TILE_W, height: TILE_W, fill: c.f, stroke: c.s, strokeWidth: 2.5, cornerRadius: 12 }))
-    // 格子内部装饰线
-    leafer.add(new Rect({ x: pos.x + 3, y: pos.y + 3, width: TILE_W - 6, height: TILE_W - 6, fill: 'transparent', stroke: `${c.s}33`, strokeWidth: 1, cornerRadius: 9 }))
-    // 格子标签
-    const labels = { start: '🧧', event: '🎁', npc: '🤝' }
-    if (labels[type]) {
-      leafer.add(new Text({ x: pos.x, y: pos.y + 6, width: TILE_W, text: labels[type], fill: c.s, fontSize: 22, fontWeight: 'bold', textAlign: 'center' }))
+
+    // ① 最外层：柔和大范围光晕
+    leafer.add(new Rect({
+      x: pos.x - 8, y: pos.y - 8, width: TILE_W + 16, height: TILE_W + 16,
+      fill: c.glowOuter, cornerRadius: 20
+    }))
+
+    // ② 外发光层
+    leafer.add(new Rect({
+      x: pos.x - 4, y: pos.y - 4, width: TILE_W + 8, height: TILE_W + 8,
+      fill: c.glow, cornerRadius: 16,
+      shadow: { x: 0, y: 0, blur: 12, color: c.glow }
+    }))
+
+    // ③ 格子主体 - 渐变背景 + 描边 + 阴影
+    leafer.add(new Rect({
+      x: pos.x, y: pos.y, width: TILE_W, height: TILE_W,
+      fill: { type: 'linear', from: { x: 0, y: 0 }, to: { x: 1, y: 1 }, stops: [
+        { offset: 0, color: c.grad1 },
+        { offset: 0.5, color: c.grad2 },
+        { offset: 1, color: c.grad1 },
+      ]},
+      stroke: c.s, strokeWidth: 2.5, cornerRadius: 12,
+      shadow: [
+        { x: 0, y: 4, blur: 15, color: 'rgba(0,0,0,0.5)' },
+        { x: 0, y: 0, blur: 8, color: c.glow },
+      ],
+      innerShadow: [
+        { x: 0, y: 2, blur: 8, color: c.innerGlow },
+        { x: 0, y: -1, blur: 4, color: 'rgba(0,0,0,0.3)' },
+      ]
+    }))
+
+    // ④ 内层装饰边框（双线）
+    leafer.add(new Rect({
+      x: pos.x + 4, y: pos.y + 4, width: TILE_W - 8, height: TILE_W - 8,
+      fill: 'transparent', stroke: `${c.s}30`, strokeWidth: 1, cornerRadius: 9
+    }))
+    leafer.add(new Rect({
+      x: pos.x + 7, y: pos.y + 7, width: TILE_W - 14, height: TILE_W - 14,
+      fill: 'transparent', stroke: `${c.s}18`, strokeWidth: 0.5, cornerRadius: 7
+    }))
+
+    // ⑤ 顶部高光 - 模拟玻璃质感
+    leafer.add(new Rect({
+      x: pos.x + 6, y: pos.y + 3, width: TILE_W - 12, height: TILE_W * 0.35,
+      fill: { type: 'linear', from: { x: 0.5, y: 0 }, to: { x: 0.5, y: 1 }, stops: [
+        { offset: 0, color: c.highlight },
+        { offset: 1, color: 'rgba(255,255,255,0)' },
+      ]},
+      cornerRadius: [8, 8, 20, 20]
+    }))
+
+    // ⑥ 四角装饰小点
+    const dotSize = 4, dotOff = 10, dotColor = `${c.s}55`
+    leafer.add(new Ellipse({ x: pos.x + dotOff, y: pos.y + dotOff, width: dotSize, height: dotSize, fill: dotColor }))
+    leafer.add(new Ellipse({ x: pos.x + TILE_W - dotOff - dotSize, y: pos.y + dotOff, width: dotSize, height: dotSize, fill: dotColor }))
+    leafer.add(new Ellipse({ x: pos.x + dotOff, y: pos.y + TILE_W - dotOff - dotSize, width: dotSize, height: dotSize, fill: dotColor }))
+    leafer.add(new Ellipse({ x: pos.x + TILE_W - dotOff - dotSize, y: pos.y + TILE_W - dotOff - dotSize, width: dotSize, height: dotSize, fill: dotColor }))
+
+    // ⑦ 格子图标（特殊格子）
+    if (c.icon) {
+      leafer.add(new Text({
+        x: pos.x, y: pos.y + 8, width: TILE_W, text: c.icon,
+        fill: c.s, fontSize: 26, fontWeight: 'bold', textAlign: 'center'
+      }))
     }
-    // 格子序号
-    leafer.add(new Text({ x: pos.x + 5, y: pos.y + TILE_W - 16, text: `${i}`, fill: 'rgba(255,255,255,0.2)', fontSize: 10 }))
+
+    // ⑧ 格子类型文字标签（特殊格子底部）
+    if (c.label) {
+      leafer.add(new Text({
+        x: pos.x, y: pos.y + TILE_W - 24, width: TILE_W,
+        text: c.label, fill: `${c.s}aa`, fontSize: 11, fontWeight: 'bold', textAlign: 'center'
+      }))
+    }
+
+    // ⑨ 普通格子中心装饰纹样
+    if (type === 'normal') {
+      // 中央菱形装饰
+      leafer.add(new Rect({
+        x: pos.x + TILE_W / 2 - 8, y: pos.y + TILE_W / 2 - 8,
+        width: 16, height: 16,
+        fill: 'transparent', stroke: `${c.s}25`, strokeWidth: 1,
+        rotation: 45, around: 'center', cornerRadius: 2
+      }))
+      // 中心小圆点
+      leafer.add(new Ellipse({
+        x: pos.x + TILE_W / 2 - 2.5, y: pos.y + TILE_W / 2 - 2.5,
+        width: 5, height: 5, fill: `${c.s}30`
+      }))
+    }
+
+    // ⑩ 格子序号 - 更精致
+    leafer.add(new Text({
+      x: pos.x + 6, y: pos.y + TILE_W - 17,
+      text: `${i}`, fill: 'rgba(255,255,255,0.15)', fontSize: 9, fontWeight: '600'
+    }))
   })
 
   // ===== NPC头像覆盖层（根据格子位置突出到对应方向） =====
