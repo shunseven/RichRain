@@ -22,6 +22,18 @@ const SYSTEM_EVENTS = [
   { id: 'sys_random_pos', name: '🎲 跳到随机位置', emoji: '🎲', icon: _sysIcon('🎲'), description: '随机传送到棋盘任意位置！', color: '#00cec9' },
 ]
 
+// === 金币事件池（-3 到 8） ===
+const COIN_EVENTS = []
+for (let i = -3; i <= 8; i++) {
+  const isGain = i >= 0
+  COIN_EVENTS.push({
+    id: `coin_${i}`,
+    name: isGain ? `💰 获得 ${i} 金币` : `💸 失去 ${Math.abs(i)} 金币`,
+    icon: _sysIcon(isGain ? '💰' : '💸'),
+    amount: i,
+  })
+}
+
 // === 棋盘格子位置 ===
 function getTilePositions(sx, sy) {
   const p = []
@@ -36,12 +48,14 @@ function getTilePositions(sx, sy) {
 const EVENT_TILES = [2, 5, 9, 14, 17, 21]
 const NPC_TILES = [4, 8, 11, 16, 20, 23]
 const SYSTEM_TILES = [3, 10, 15, 22]  // 系统事件格子（每边各一个）
+const COIN_TILES = [1, 7, 12, 19]    // 金币格子（每边各一个）
 
 function getTileType(i) {
   if (i === 0) return 'start'
   if (EVENT_TILES.includes(i)) return 'event'
   if (NPC_TILES.includes(i)) return 'npc'
   if (SYSTEM_TILES.includes(i)) return 'system'
+  if (COIN_TILES.includes(i)) return 'coin'
   return 'normal'
 }
 
@@ -171,6 +185,12 @@ export function startGame(container, navigate, totalRounds) {
       glow: 'rgba(52,152,219,0.25)', glowOuter: 'rgba(52,152,219,0.1)',
       innerGlow: 'rgba(100,180,255,0.08)', highlight: 'rgba(180,220,255,0.16)',
       icon: '⚡', label: '系统',
+    },
+    coin: {
+      grad1: '#3a3000', grad2: '#201a00', s: '#f1c40f', s2: '#f9e547',
+      glow: 'rgba(241,196,15,0.25)', glowOuter: 'rgba(241,196,15,0.1)',
+      innerGlow: 'rgba(255,220,50,0.08)', highlight: 'rgba(255,240,150,0.18)',
+      icon: '💰', label: '金币',
     },
   }
 
@@ -493,6 +513,22 @@ export function startGame(container, navigate, totalRounds) {
     })
   }
 
+  // ===== 金币弹窗 =====
+  function showCoinPopup(player, amount) {
+    return new Promise(resolve => {
+      const isGain = amount >= 0
+      const ov = document.createElement('div'); ov.className = 'star-popup'
+      ov.innerHTML = `
+        <div class="star-icon" style="font-size:60px">${isGain ? '💰' : '💸'}</div>
+        <div class="star-text">
+          ${player.name} ${isGain ? '获得' : '失去'}了 <span style="color:${isGain ? '#f1c40f' : '#e74c3c'};font-weight:bold">${Math.abs(amount)}</span> 个金币！
+          <br/><span style="font-size:0.8em;color:#aaa">当前金币: ${player.coins}</span>
+        </div>`
+      document.body.appendChild(ov)
+      setTimeout(() => { ov.remove(); resolve() }, 2000)
+    })
+  }
+
   // ===== 小游戏选择逻辑 =====
   function selectMiniGame() {
     const games = store.getMiniGames()
@@ -712,6 +748,17 @@ export function startGame(container, navigate, totalRounds) {
       const ev = await showRoller('⚡ 系统事件抽取中...', SYSTEM_EVENTS, SYSTEM_EVENTS.length)
       if (ev) {
         await executeSystemEvent(pi, ev)
+      }
+    } else if (type === 'coin') {
+      // 金币格子 → 滚动器抽取 -3 到 8 个金币
+      setHint('💰 金币事件触发！')
+      const ev = await showRoller('💰 金币抽取中...', COIN_EVENTS, Math.min(6, COIN_EVENTS.length))
+      if (ev) {
+        const coinChange = ev.amount
+        p.coins += coinChange
+        if (p.coins < 0) p.coins = 0
+        updateInfoPanel(); updatePlayersPanel()
+        await showCoinPopup(p, coinChange)
       }
     } else if (type === 'npc' && npcEvents.length > 0) {
       const npcs = store.getNpcs()
