@@ -67,6 +67,22 @@ body {
   50% { opacity: 1; }
 }
 
+.menu-super-title {
+  font-size: 1.8em;
+  font-weight: bold;
+  color: #ff4757;
+  background: linear-gradient(45deg, #ff6b6b, #ffd700, #ff6b6b);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient 3s ease infinite;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+  letter-spacing: 4px;
+  text-shadow: 0 0 20px rgba(255,75,43,0.4);
+}
+
 .menu-title {
   font-size: 3.5em;
   font-weight: bold;

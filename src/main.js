@@ -34,6 +34,7 @@ export function navigate(screen, params = {}) {
 function showMenu() {
   app.innerHTML = `
     <div class="menu-screen">
+      <div class="menu-super-title">🧧 红包雨3.0 🧧</div>
       <div class="menu-title">🎉 新春派对大富翁 🎉</div>
       <div class="menu-subtitle">🧧 恭喜发财 · 万事如意 🧧</div>
       <div class="menu-buttons">
