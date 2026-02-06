@@ -1,12 +1,13 @@
 // ===== 游戏主体 - LeaferJS 游戏板 + 游戏逻辑 =====
 import { Leafer, Rect, Text, Ellipse } from 'leafer-ui'
 import { store, SYSTEM_ICONS } from './store.js'
+import { resolveAllImages } from './imageDB.js'
 
 // === 常量 ===
 const BOARD_SIZE = 24
-const TILE_W = 66
-const ST = 76 // tile step (size + gap)
-const TOKEN_R = 11
+const TILE_W = 88
+const ST = 102 // tile step (size + gap)
+const TOKEN_R = 15
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
@@ -52,11 +53,29 @@ export function startGame(container, navigate, totalRounds) {
   // ===== DOM 结构 =====
   container.innerHTML = `
     <div class="game-screen">
+      <div class="festive-lantern left">🏮</div>
+      <div class="festive-lantern right">🏮</div>
+      <div class="festive-particles" id="festive-particles"></div>
       <div id="game-canvas" class="game-canvas-container"></div>
       <div id="all-players" class="all-players-panel"></div>
       <div id="game-info" class="game-info-panel"></div>
       <div id="game-hint" class="game-hint"></div>
     </div>`
+
+  // 生成飘落的喜庆粒子
+  const particleContainer = document.getElementById('festive-particles')
+  const particleEmojis = ['🧧', '✨', '🎊', '💰', '🎆', '🎇', '🌟']
+  for (let i = 0; i < 15; i++) {
+    const p = document.createElement('span')
+    p.className = 'festive-particle'
+    p.textContent = particleEmojis[Math.floor(Math.random() * particleEmojis.length)]
+    p.style.left = Math.random() * 100 + '%'
+    p.style.animationDelay = Math.random() * 8 + 's'
+    p.style.animationDuration = (6 + Math.random() * 6) + 's'
+    p.style.fontSize = (12 + Math.random() * 14) + 'px'
+    p.style.opacity = 0.3 + Math.random() * 0.4
+    particleContainer.appendChild(p)
+  }
 
   // ===== LeaferJS 棋盘 =====
   const cw = window.innerWidth, ch = window.innerHeight
@@ -64,38 +83,51 @@ export function startGame(container, navigate, totalRounds) {
   const sx = Math.round((cw - boardW) / 2), sy = Math.round((ch - boardH) / 2) - 10
   const tilePos = getTilePositions(sx, sy)
 
-  const leafer = new Leafer({ view: document.getElementById('game-canvas'), width: cw, height: ch, fill: '#0a1628' })
+  const leafer = new Leafer({ view: document.getElementById('game-canvas'), width: cw, height: ch, fill: 'transparent' })
 
-  // 绘制连接线（路径指引）
+  // 绘制喜庆底纹装饰（散落的金色小圆点）
+  for (let i = 0; i < 40; i++) {
+    const rx = Math.random() * cw, ry = Math.random() * ch
+    leafer.add(new Ellipse({ x: rx, y: ry, width: 4 + Math.random() * 4, height: 4 + Math.random() * 4, fill: `rgba(255,215,0,${0.03 + Math.random() * 0.06})` }))
+  }
+
+  // 绘制连接线（路径指引 - 金色虚线风格）
   for (let i = 0; i < BOARD_SIZE; i++) {
     const a = tilePos[i], b = tilePos[(i + 1) % BOARD_SIZE]
     const ax = a.x + TILE_W / 2, ay = a.y + TILE_W / 2, bx = b.x + TILE_W / 2, by = b.y + TILE_W / 2
-    leafer.add(new Rect({ x: Math.min(ax, bx) - 1, y: Math.min(ay, by) - 1, width: Math.abs(bx - ax) + 2 || 3, height: Math.abs(by - ay) + 2 || 3, fill: 'rgba(255,215,0,0.08)', cornerRadius: 1 }))
+    leafer.add(new Rect({ x: Math.min(ax, bx) - 2, y: Math.min(ay, by) - 2, width: Math.abs(bx - ax) + 4 || 4, height: Math.abs(by - ay) + 4 || 4, fill: 'rgba(255,215,0,0.1)', cornerRadius: 2 }))
   }
 
-  // 绘制格子
+  // 绘制格子 - 喜庆新春配色
   const tileColors = {
-    normal: { f: '#1a2744', s: '#2d4a7a' }, start: { f: '#1a3a2a', s: '#2ecc71' },
-    event: { f: '#3a2a1a', s: '#e67e22' }, npc: { f: '#2a1a3a', s: '#9b59b6' },
+    normal: { f: '#2a0a0a', s: '#c0392b', glow: 'rgba(192,57,43,0.15)' },
+    start:  { f: '#3a1a00', s: '#ffd700', glow: 'rgba(255,215,0,0.2)' },
+    event:  { f: '#3a1500', s: '#e67e22', glow: 'rgba(230,126,34,0.15)' },
+    npc:    { f: '#2a0020', s: '#e84393', glow: 'rgba(232,67,147,0.15)' },
   }
 
   tilePos.forEach((pos, i) => {
     const type = getTileType(i)
     const c = tileColors[type] || tileColors.normal
-    leafer.add(new Rect({ x: pos.x, y: pos.y, width: TILE_W, height: TILE_W, fill: c.f, stroke: c.s, strokeWidth: 2, cornerRadius: 8 }))
+    // 外发光效果
+    leafer.add(new Rect({ x: pos.x - 3, y: pos.y - 3, width: TILE_W + 6, height: TILE_W + 6, fill: c.glow, cornerRadius: 14 }))
+    // 格子主体
+    leafer.add(new Rect({ x: pos.x, y: pos.y, width: TILE_W, height: TILE_W, fill: c.f, stroke: c.s, strokeWidth: 2.5, cornerRadius: 12 }))
+    // 格子内部装饰线
+    leafer.add(new Rect({ x: pos.x + 3, y: pos.y + 3, width: TILE_W - 6, height: TILE_W - 6, fill: 'transparent', stroke: `${c.s}33`, strokeWidth: 1, cornerRadius: 9 }))
     // 格子标签
-    const labels = { start: 'GO', event: '❗', npc: '👤' }
+    const labels = { start: '🧧', event: '🎁', npc: '🤝' }
     if (labels[type]) {
-      leafer.add(new Text({ x: pos.x, y: pos.y + 6, width: TILE_W, text: labels[type], fill: c.s, fontSize: type === 'start' ? 15 : 18, fontWeight: 'bold', textAlign: 'center' }))
+      leafer.add(new Text({ x: pos.x, y: pos.y + 6, width: TILE_W, text: labels[type], fill: c.s, fontSize: 22, fontWeight: 'bold', textAlign: 'center' }))
     }
     // 格子序号
-    leafer.add(new Text({ x: pos.x + 4, y: pos.y + TILE_W - 14, text: `${i}`, fill: 'rgba(255,255,255,0.15)', fontSize: 9 }))
+    leafer.add(new Text({ x: pos.x + 5, y: pos.y + TILE_W - 16, text: `${i}`, fill: 'rgba(255,255,255,0.2)', fontSize: 10 }))
   })
 
   // 星星标记
-  const starText = new Text({ x: tilePos[starPos].x, y: tilePos[starPos].y + 2, width: TILE_W, text: '⭐', fontSize: 22, textAlign: 'center' })
+  const starText = new Text({ x: tilePos[starPos].x, y: tilePos[starPos].y + 2, width: TILE_W, text: '⭐', fontSize: 28, textAlign: 'center' })
   leafer.add(starText)
-  const starLabel = new Text({ x: tilePos[starPos].x, y: tilePos[starPos].y + 28, width: TILE_W, text: '10💰', fill: '#ffd700', fontSize: 10, textAlign: 'center' })
+  const starLabel = new Text({ x: tilePos[starPos].x, y: tilePos[starPos].y + 34, width: TILE_W, text: '10💰', fill: '#ffd700', fontSize: 13, textAlign: 'center' })
   leafer.add(starLabel)
 
   function moveStar() {
@@ -112,7 +144,7 @@ export function startGame(container, navigate, totalRounds) {
     const { x, y } = tokenXY(p.position, idx)
     const el = new Ellipse({ x, y, width: TOKEN_R * 2, height: TOKEN_R * 2, fill: p.color, stroke: '#fff', strokeWidth: 2 })
     leafer.add(el)
-    const tx = new Text({ x, y: y + 2, width: TOKEN_R * 2, text: p.name[0], fill: '#fff', fontSize: 11, fontWeight: 'bold', textAlign: 'center' })
+    const tx = new Text({ x, y: y + 3, width: TOKEN_R * 2, text: p.name[0], fill: '#fff', fontSize: 14, fontWeight: 'bold', textAlign: 'center' })
     leafer.add(tx)
     return { el, tx }
   })
@@ -131,14 +163,15 @@ export function startGame(container, navigate, totalRounds) {
     players.forEach((p, i) => {
       const { x, y } = tokenXY(p.position, i)
       tokens[i].el.x = x; tokens[i].el.y = y
-      tokens[i].tx.x = x; tokens[i].tx.y = y + 2
+      tokens[i].tx.x = x; tokens[i].tx.y = y + 3
     })
   }
 
   // ===== UI 更新函数 =====
   function updateInfoPanel() {
     const p = players[currentPI]
-    document.getElementById('game-info').innerHTML = `
+    const infoEl = document.getElementById('game-info')
+    infoEl.innerHTML = `
       <div class="round-info">第 ${currentRound} / ${totalRounds} 轮</div>
       <div class="current-player">
         <div class="player-avatar"><img src="${p.avatar}"/></div>
@@ -147,10 +180,12 @@ export function startGame(container, navigate, totalRounds) {
           <div class="stat"><span class="coin">💰 ${p.coins}</span> &nbsp; <span class="star">⭐ ${p.stars}</span></div>
         </div>
       </div>`
+    resolveAllImages(infoEl)
   }
 
   function updatePlayersPanel() {
-    document.getElementById('all-players').innerHTML = `
+    const panelEl = document.getElementById('all-players')
+    panelEl.innerHTML = `
       <div class="ap-title">所有玩家</div>
       ${players.map((p, i) => `
         <div class="ap-item ${i === currentPI ? 'active' : ''}">
@@ -158,6 +193,7 @@ export function startGame(container, navigate, totalRounds) {
           <span>${p.name}</span>
           <span style="margin-left:auto">💰${p.coins} ⭐${p.stars}</span>
         </div>`).join('')}`
+    resolveAllImages(panelEl)
   }
 
   function setHint(text) { document.getElementById('game-hint').textContent = text }
@@ -196,7 +232,7 @@ export function startGame(container, navigate, totalRounds) {
       const ITEM_H = 60, REPEATS = 5
       const all = []; for (let r = 0; r < REPEATS; r++) all.push(...items)
       const targetI = (REPEATS - 2) * items.length + selectedIdx
-      const targetY = targetI * ITEM_H - 120 + ITEM_H / 2
+      const targetY = targetI * ITEM_H - 130
 
       const ov = document.createElement('div'); ov.className = 'roller-overlay'
       ov.innerHTML = `
@@ -208,10 +244,15 @@ export function startGame(container, navigate, totalRounds) {
           </div>
         </div>`
       document.body.appendChild(ov)
+      resolveAllImages(ov)
       const track = ov.querySelector('#roller-track')
+      // 强制浏览器完成初始布局，确保过渡动画可以正常触发
+      track.getBoundingClientRect()
       requestAnimationFrame(() => {
-        track.style.transition = 'transform 3s cubic-bezier(0.15,0.85,0.25,1)'
-        track.style.transform = `translateY(-${targetY}px)`
+        requestAnimationFrame(() => {
+          track.style.transition = 'transform 3s cubic-bezier(0.15,0.85,0.25,1)'
+          track.style.transform = `translateY(-${targetY}px)`
+        })
       })
       setTimeout(() => { setTimeout(() => { ov.remove(); resolve(items[selectedIdx]) }, 1200) }, 3100)
     })
@@ -233,6 +274,7 @@ export function startGame(container, navigate, totalRounds) {
           <div class="continue-hint" style="margin-top:20px">按空格键继续</div>
         </div>`
       document.body.appendChild(ov)
+      resolveAllImages(ov)
       const handler = (e) => {
         if (e.code === 'Space') { document.removeEventListener('keydown', handler); ov.remove(); resolve() }
       }
@@ -307,6 +349,7 @@ export function startGame(container, navigate, totalRounds) {
           <div class="rank-instruction" id="rank-inst">👆 点击第 1 名</div>
         </div>`
       document.body.appendChild(ov)
+      resolveAllImages(ov)
 
       const rankings = [] // [{playerIdx, rank}]
       const coins = [5, 3, 1] // 前三名奖励
@@ -390,7 +433,7 @@ export function startGame(container, navigate, totalRounds) {
       const ITEM_H = 60, REPEATS = 5
       const all = []; for (let r = 0; r < REPEATS; r++) all.push(...items)
       const targetI = (REPEATS - 2) * items.length + selectedIndex
-      const targetY = targetI * ITEM_H - 120 + ITEM_H / 2
+      const targetY = targetI * ITEM_H - 130
 
       const ov = document.createElement('div'); ov.className = 'roller-overlay'
       ov.innerHTML = `
@@ -402,10 +445,15 @@ export function startGame(container, navigate, totalRounds) {
           </div>
         </div>`
       document.body.appendChild(ov)
+      resolveAllImages(ov)
       const track = ov.querySelector('#mg-track')
+      // 强制浏览器完成初始布局，确保过渡动画可以正常触发
+      track.getBoundingClientRect()
       requestAnimationFrame(() => {
-        track.style.transition = 'transform 3.5s cubic-bezier(0.12,0.88,0.22,1)'
-        track.style.transform = `translateY(-${targetY}px)`
+        requestAnimationFrame(() => {
+          track.style.transition = 'transform 3.5s cubic-bezier(0.12,0.88,0.22,1)'
+          track.style.transform = `translateY(-${targetY}px)`
+        })
       })
       await sleep(3600)
       await sleep(1000)

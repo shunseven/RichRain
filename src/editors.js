@@ -1,5 +1,6 @@
 // ===== 所有编辑器界面 =====
 import { store, genId, generateAvatar, CHARACTER_COLORS, NPC_COLORS } from './store.js'
+import { saveImage, getImage, resolveAllImages, fileToBase64, genImageId, isIdbSrc } from './imageDB.js'
 
 // ===== 通用编辑器框架 =====
 function createEditorLayout(container, title, onBack) {
@@ -42,7 +43,10 @@ function showModal(container, title, fields, data, onSave, onCancel) {
       return `<div class="form-group"><label>${f.label}</label><div style="display:flex;gap:8px;flex-wrap:wrap">${f.colors.map(c => `<div class="color-opt" data-color="${c}" style="width:32px;height:32px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${val === c ? '#ffd700' : 'transparent'};transition:all 0.2s"></div>`).join('')}</div><input type="hidden" name="${f.key}" value="${val}"/></div>`
     }
     if (f.type === 'icon-url') {
-      return `<div class="form-group"><label>${f.label}</label><div class="icon-selector"><div class="icon-preview-small" id="icon-preview"><img src="${val}" alt="图标"/></div><input type="text" name="${f.key}" value="${val}" placeholder="SVG data URI 或图片URL" style="flex:1"/></div></div>`
+      return `<div class="form-group"><label>${f.label}</label><div class="icon-selector"><div class="icon-preview-small" id="icon-preview-${f.key}"><img src="${val}" alt="图标"/></div><input type="text" name="${f.key}" value="${val}" placeholder="输入图片URL 或点击上传" style="flex:1"/><label class="btn-upload" for="upload-${f.key}">📁 上传</label><input type="file" id="upload-${f.key}" data-field="${f.key}" data-preview="icon-preview-${f.key}" class="file-upload-input" accept="image/*" style="display:none"/></div></div>`
+    }
+    if (f.type === 'avatar-upload') {
+      return `<div class="form-group"><label>${f.label}</label><div class="avatar-upload-area"><div class="icon-preview-small" id="icon-preview-${f.key}"><img src="${val}" alt="头像"/></div><div class="avatar-upload-btns"><label class="btn-upload" for="upload-${f.key}">📁 上传头像</label><button type="button" class="btn-avatar-reset" data-field="${f.key}">🔄 恢复默认</button></div><input type="file" id="upload-${f.key}" data-field="${f.key}" data-preview="icon-preview-${f.key}" class="file-upload-input" accept="image/*" style="display:none"/><input type="hidden" name="${f.key}" value="${val}"/></div></div>`
     }
     return `<div class="form-group"><label>${f.label}</label><input type="text" name="${f.key}" value="${val}"/></div>`
   }).join('')
@@ -70,14 +74,59 @@ function showModal(container, title, fields, data, onSave, onCancel) {
     })
   })
 
-  // 图标URL实时预览
-  const iconInput = overlay.querySelector('input[name="icon"]')
-  if (iconInput) {
-    iconInput.addEventListener('input', () => {
-      const preview = overlay.querySelector('#icon-preview img')
-      if (preview) preview.src = iconInput.value
+  // 图标/图片URL实时预览（支持所有 icon-url 类型字段）
+  overlay.querySelectorAll('.icon-selector input[type="text"]').forEach(input => {
+    input.addEventListener('input', () => {
+      const fieldKey = input.name
+      const preview = overlay.querySelector(`#icon-preview-${fieldKey} img`)
+      if (preview) {
+        const val = input.value
+        if (isIdbSrc(val)) {
+          getImage(val.slice(4)).then(imgData => { if (imgData) preview.src = imgData })
+        } else {
+          preview.src = val
+        }
+      }
     })
-  }
+  })
+
+  // 文件上传处理（icon-url 和 avatar-upload 共用）
+  overlay.querySelectorAll('.file-upload-input').forEach(fileInput => {
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      try {
+        const base64 = await fileToBase64(file)
+        const imageId = genImageId()
+        await saveImage(imageId, base64)
+        const fieldKey = fileInput.dataset.field
+        // 更新文本输入或隐藏输入
+        const textInput = overlay.querySelector(`input[name="${fieldKey}"]`)
+        if (textInput) textInput.value = `idb:${imageId}`
+        // 更新预览
+        const previewId = fileInput.dataset.preview
+        const preview = overlay.querySelector(`#${previewId} img`)
+        if (preview) preview.src = base64
+      } catch (err) {
+        console.error('图片上传失败:', err)
+        alert('图片上传失败，请重试')
+      }
+    })
+  })
+
+  // 头像恢复默认按钮处理
+  overlay.querySelectorAll('.btn-avatar-reset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fieldKey = btn.dataset.field
+      const hiddenInput = overlay.querySelector(`input[name="${fieldKey}"]`)
+      if (hiddenInput) hiddenInput.value = ''
+      const preview = overlay.querySelector(`#icon-preview-${fieldKey} img`)
+      if (preview) preview.src = ''
+    })
+  })
+
+  // 解析弹窗内的 idb: 图片
+  resolveAllImages(overlay)
 
   overlay.querySelector('#modal-cancel').addEventListener('click', () => {
     overlay.remove()
@@ -124,12 +173,18 @@ export function showCharacterEditor(container, navigate) {
       </div>
     `).join('')
 
+    // 解析 idb: 图片
+    resolveAllImages(grid)
+
     grid.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', () => {
         const char = chars.find(c => c.id === btn.dataset.id)
         if (!char) return
         showCharModal(char, (data) => {
-          data.avatar = generateAvatar(data.name, data.color)
+          // 如果没有自定义头像，则自动生成
+          if (!data.avatar || !data.avatar.trim()) {
+            data.avatar = generateAvatar(data.name, data.color)
+          }
           store.updateCharacter(char.id, data)
           render()
         })
@@ -150,13 +205,17 @@ export function showCharacterEditor(container, navigate) {
     showModal(container, data.id ? '编辑角色' : '新增角色', [
       { key: 'name', label: '角色名称', type: 'text' },
       { key: 'color', label: '角色颜色', type: 'color', colors: CHARACTER_COLORS },
+      { key: 'avatar', label: '自定义头像 (可选，不填则自动生成)', type: 'avatar-upload' },
     ], data, onSave)
   }
 
   addBtn.addEventListener('click', () => {
     showCharModal({ color: CHARACTER_COLORS[0] }, (data) => {
       if (!data.name) { alert('请输入角色名称'); return }
-      data.avatar = generateAvatar(data.name, data.color)
+      // 如果没有自定义头像，则自动生成
+      if (!data.avatar || !data.avatar.trim()) {
+        data.avatar = generateAvatar(data.name, data.color)
+      }
       store.addCharacter(data)
       render()
     })
@@ -183,6 +242,9 @@ export function showNpcEditor(container, navigate) {
       </div>
     `).join('')
 
+    // 解析 idb: 图片
+    resolveAllImages(grid)
+
     grid.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', () => {
         const npc = npcs.find(n => n.id === btn.dataset.id)
@@ -190,8 +252,11 @@ export function showNpcEditor(container, navigate) {
         showModal(container, '编辑NPC', [
           { key: 'name', label: 'NPC名称', type: 'text' },
           { key: 'color', label: 'NPC颜色', type: 'color', colors: NPC_COLORS },
+          { key: 'avatar', label: '自定义头像 (可选，不填则自动生成)', type: 'avatar-upload' },
         ], npc, (data) => {
-          data.avatar = generateAvatar(data.name, data.color)
+          if (!data.avatar || !data.avatar.trim()) {
+            data.avatar = generateAvatar(data.name, data.color)
+          }
           store.updateNpc(npc.id, data)
           render()
         })
@@ -212,9 +277,12 @@ export function showNpcEditor(container, navigate) {
     showModal(container, '新增NPC', [
       { key: 'name', label: 'NPC名称', type: 'text' },
       { key: 'color', label: 'NPC颜色', type: 'color', colors: NPC_COLORS },
+      { key: 'avatar', label: '自定义头像 (可选，不填则自动生成)', type: 'avatar-upload' },
     ], { color: NPC_COLORS[0] }, (data) => {
       if (!data.name) { alert('请输入NPC名称'); return }
-      data.avatar = generateAvatar(data.name, data.color)
+      if (!data.avatar || !data.avatar.trim()) {
+        data.avatar = generateAvatar(data.name, data.color)
+      }
       store.addNpc(data)
       render()
     })
@@ -241,6 +309,9 @@ export function showMiniGameEditor(container, navigate) {
         </div>
       </div>
     `).join('')
+
+    // 解析 idb: 图片
+    resolveAllImages(grid)
 
     grid.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -305,6 +376,9 @@ export function showEventEditor(container, navigate) {
       </div>
     `).join('')
 
+    // 解析 idb: 图片
+    resolveAllImages(grid)
+
     grid.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', () => {
         const ev = events.find(e => e.id === btn.dataset.id)
@@ -367,6 +441,9 @@ export function showNpcEventEditor(container, navigate) {
         </div>
       </div>
     `).join('')
+
+    // 解析 idb: 图片
+    resolveAllImages(grid)
 
     grid.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -443,15 +520,44 @@ export function showPrizeEditor(container, navigate) {
       <input type="text" id="prize-name" value="${prize.name || ''}" />
     </div>
     <div class="form-group" style="max-width:400px;margin:15px auto 0">
-      <label>图标URL (SVG data URI 或图片地址)</label>
-      <input type="text" id="prize-icon" value="${prize.icon || ''}" />
+      <label>图标 (输入URL 或点击上传图片)</label>
+      <div class="icon-selector">
+        <input type="text" id="prize-icon" value="${prize.icon || ''}" style="flex:1"/>
+        <label class="btn-upload" for="prize-icon-upload">📁 上传</label>
+        <input type="file" id="prize-icon-upload" accept="image/*" style="display:none"/>
+      </div>
     </div>
     <button class="btn-save" id="prize-save" style="margin-top:25px;padding:12px 40px;font-size:1.1em">保存设定</button>
   `
 
+  // 解析 idb: 图片
+  resolveAllImages(form)
+
   const iconInput = form.querySelector('#prize-icon')
   iconInput.addEventListener('input', () => {
-    form.querySelector('#prize-icon-preview').src = iconInput.value
+    const val = iconInput.value
+    const preview = form.querySelector('#prize-icon-preview')
+    if (isIdbSrc(val)) {
+      getImage(val.slice(4)).then(imgData => { if (imgData) preview.src = imgData })
+    } else {
+      preview.src = val
+    }
+  })
+
+  // 文件上传处理
+  form.querySelector('#prize-icon-upload').addEventListener('change', async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    try {
+      const base64 = await fileToBase64(file)
+      const imageId = genImageId()
+      await saveImage(imageId, base64)
+      iconInput.value = `idb:${imageId}`
+      form.querySelector('#prize-icon-preview').src = base64
+    } catch (err) {
+      console.error('图片上传失败:', err)
+      alert('图片上传失败，请重试')
+    }
   })
 
   form.querySelector('#prize-save').addEventListener('click', () => {

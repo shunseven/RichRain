@@ -1,6 +1,7 @@
 // ===== 主入口 + 路由 =====
 import './style.css'
 import { store, SYSTEM_ICONS } from './store.js'
+import { resolveAllImages } from './imageDB.js'
 import { showCharacterEditor, showNpcEditor, showMiniGameEditor, showEventEditor, showNpcEventEditor, showPrizeEditor } from './editors.js'
 import { startGame } from './game.js'
 
@@ -135,6 +136,9 @@ function showResults(params = {}) {
       <button class="btn-home" id="btn-go-home">返回主菜单</button>
     </div>
   `
+
+  // 解析 idb: 图片引用
+  resolveAllImages(app)
 
   document.getElementById('btn-go-home').addEventListener('click', () => {
     navigate('menu')
