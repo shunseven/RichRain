@@ -32,6 +32,14 @@ function getTileType(i) {
   return 'normal'
 }
 
+// === 格子所在棋盘边 ===
+function getTileSide(i) {
+  if (i >= 0 && i <= 7) return 'top'
+  if (i >= 8 && i <= 12) return 'right'
+  if (i >= 13 && i <= 19) return 'bottom'
+  return 'left' // 20-23
+}
+
 // ========================================
 // 主游戏函数
 // ========================================
@@ -57,6 +65,7 @@ export function startGame(container, navigate, totalRounds) {
       <div class="festive-lantern right">🏮</div>
       <div class="festive-particles" id="festive-particles"></div>
       <div id="game-canvas" class="game-canvas-container"></div>
+      <div id="avatar-overlay" class="avatar-overlay"></div>
       <div id="all-players" class="all-players-panel"></div>
       <div id="game-info" class="game-info-panel"></div>
       <div id="game-hint" class="game-hint"></div>
@@ -124,6 +133,40 @@ export function startGame(container, navigate, totalRounds) {
     leafer.add(new Text({ x: pos.x + 5, y: pos.y + TILE_W - 16, text: `${i}`, fill: 'rgba(255,255,255,0.2)', fontSize: 10 }))
   })
 
+  // ===== NPC头像覆盖层（根据格子位置突出到对应方向） =====
+  const avatarOverlay = document.getElementById('avatar-overlay')
+  const npcs = store.getNpcs()
+  const NPC_AVATAR_SIZE = 48
+  NPC_TILES.forEach((tileIdx, i) => {
+    if (npcs.length === 0) return
+    const npc = npcs[i % npcs.length]
+    const pos = tilePos[tileIdx]
+    const side = getTileSide(tileIdx)
+    const el = document.createElement('div')
+    el.className = 'tile-npc-avatar npc-side-' + side
+    el.style.width = NPC_AVATAR_SIZE + 'px'
+    el.style.height = NPC_AVATAR_SIZE + 'px'
+
+    // 根据格子所在边决定头像突出方向
+    if (side === 'top' || side === 'bottom') {
+      // 上边和下边：头像在格子上方
+      el.style.left = (pos.x + TILE_W / 2 - NPC_AVATAR_SIZE / 2) + 'px'
+      el.style.top = (pos.y - NPC_AVATAR_SIZE / 2 - 2) + 'px'
+    } else if (side === 'right') {
+      // 右边：头像在格子右侧
+      el.style.left = (pos.x + TILE_W - NPC_AVATAR_SIZE / 2 + 2) + 'px'
+      el.style.top = (pos.y + TILE_W / 2 - NPC_AVATAR_SIZE / 2) + 'px'
+    } else {
+      // 左边：头像在格子左侧
+      el.style.left = (pos.x - NPC_AVATAR_SIZE / 2 - 2) + 'px'
+      el.style.top = (pos.y + TILE_W / 2 - NPC_AVATAR_SIZE / 2) + 'px'
+    }
+
+    el.innerHTML = `<img src="${npc.avatar}" alt="${npc.name}"/><span class="npc-name-tag">${npc.name}</span>`
+    avatarOverlay.appendChild(el)
+  })
+  resolveAllImages(avatarOverlay)
+
   // 星星标记
   const starText = new Text({ x: tilePos[starPos].x, y: tilePos[starPos].y + 2, width: TILE_W, text: '⭐', fontSize: 28, textAlign: 'center' })
   leafer.add(starText)
@@ -140,14 +183,26 @@ export function startGame(container, navigate, totalRounds) {
   }
 
   // 角色棋子
+  const PLAYER_AVATAR_SIZE = 40
   const tokens = players.map((p, idx) => {
     const { x, y } = tokenXY(p.position, idx)
     const el = new Ellipse({ x, y, width: TOKEN_R * 2, height: TOKEN_R * 2, fill: p.color, stroke: '#fff', strokeWidth: 2 })
     leafer.add(el)
     const tx = new Text({ x, y: y + 3, width: TOKEN_R * 2, text: p.name[0], fill: '#fff', fontSize: 14, fontWeight: 'bold', textAlign: 'center' })
     leafer.add(tx)
-    return { el, tx }
+    // 角色头像DOM覆盖层（突出到格子外面）
+    const avatarEl = document.createElement('div')
+    avatarEl.className = 'tile-player-avatar'
+    avatarEl.style.width = PLAYER_AVATAR_SIZE + 'px'
+    avatarEl.style.height = PLAYER_AVATAR_SIZE + 'px'
+    avatarEl.style.left = (x + TOKEN_R - PLAYER_AVATAR_SIZE / 2) + 'px'
+    avatarEl.style.top = (y - PLAYER_AVATAR_SIZE + 4) + 'px'
+    avatarEl.style.borderColor = p.color
+    avatarEl.innerHTML = `<img src="${p.avatar}"/>`
+    avatarOverlay.appendChild(avatarEl)
+    return { el, tx, avatarEl }
   })
+  resolveAllImages(avatarOverlay)
 
   function tokenXY(tileIdx, playerIdx) {
     const t = tilePos[tileIdx]
@@ -164,6 +219,9 @@ export function startGame(container, navigate, totalRounds) {
       const { x, y } = tokenXY(p.position, i)
       tokens[i].el.x = x; tokens[i].el.y = y
       tokens[i].tx.x = x; tokens[i].tx.y = y + 3
+      // 更新角色头像覆盖层位置
+      tokens[i].avatarEl.style.left = (x + TOKEN_R - PLAYER_AVATAR_SIZE / 2) + 'px'
+      tokens[i].avatarEl.style.top = (y - PLAYER_AVATAR_SIZE + 4) + 'px'
     })
   }
 

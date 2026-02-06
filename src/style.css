@@ -558,6 +558,122 @@ body {
   height: 100%;
 }
 
+/* 头像覆盖层 - 用于在格子外显示NPC和角色头像 */
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 90;
+}
+
+/* NPC头像 - 突出到格子上方 */
+.tile-npc-avatar {
+  position: absolute;
+  border-radius: 50%;
+  border: 2.5px solid #e84393;
+  background: radial-gradient(circle, #3a0030, #2a0020);
+  box-shadow: 0 2px 12px rgba(232,67,147,0.45), 0 0 0 2px rgba(232,67,147,0.15);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  animation: npcAvatarFloat 3s ease-in-out infinite;
+}
+
+.tile-npc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.tile-npc-avatar .npc-name-tag {
+  position: absolute;
+  font-size: 10px;
+  color: #ffd700;
+  white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  font-weight: bold;
+}
+
+/* 上方和下方格子：名字在头像下方 */
+.tile-npc-avatar.npc-side-top .npc-name-tag,
+.tile-npc-avatar.npc-side-bottom .npc-name-tag {
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* 右侧格子：名字在头像下方 */
+.tile-npc-avatar.npc-side-right .npc-name-tag {
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* 左侧格子：名字在头像下方 */
+.tile-npc-avatar.npc-side-left .npc-name-tag {
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* 上下格子：上下浮动动画 */
+.tile-npc-avatar.npc-side-top,
+.tile-npc-avatar.npc-side-bottom {
+  animation: npcAvatarFloatY 3s ease-in-out infinite;
+}
+
+/* 左右格子：左右浮动动画 */
+.tile-npc-avatar.npc-side-right {
+  animation: npcAvatarFloatRight 3s ease-in-out infinite;
+}
+
+.tile-npc-avatar.npc-side-left {
+  animation: npcAvatarFloatLeft 3s ease-in-out infinite;
+}
+
+@keyframes npcAvatarFloatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes npcAvatarFloatRight {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+
+@keyframes npcAvatarFloatLeft {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-3px); }
+}
+
+/* 角色头像 - 突出到棋子上方 */
+.tile-player-avatar {
+  position: absolute;
+  border-radius: 50%;
+  border: 2.5px solid #ffd700;
+  background: rgba(0,0,0,0.5);
+  box-shadow: 0 2px 10px rgba(255,215,0,0.4), 0 0 0 1.5px rgba(255,215,0,0.15);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  transition: left 0.3s ease, top 0.3s ease;
+}
+
+.tile-player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 /* 游戏信息面板 - 喜庆红金风格 */
 .game-info-panel {
   position: absolute;
