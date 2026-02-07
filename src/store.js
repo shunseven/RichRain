@@ -29,6 +29,8 @@ const DEFAULT_MINIGAMES = [
   { id: genId(), name: '射击比赛', icon: GAME_ICONS.sheji, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '分数最高的赢（三次机会）' },
   { id: genId(), name: '海盗插剑', icon: GAME_ICONS.haidao, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '插中机关的输' },
   { id: genId(), name: '咬手鳄鱼', icon: GAME_ICONS.eyu, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '咬中的输' },
+  { id: genId(), name: '抢保龄球', icon: GAME_ICONS.baolingqiu, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '谁先抢到谁，谁赢' },
+  { id: genId(), name: '零食雨', icon: GAME_ICONS.lingshiyu, probability: 80, maxCount: 1, remainingCount: 1, winCondition: '谁抢得多 谁赢' },
 ]
 
 const DEFAULT_EVENTS = [
