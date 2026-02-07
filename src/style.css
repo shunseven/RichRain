@@ -1019,6 +1019,7 @@ body {
 
 .dice-scene.settled {
   animation: dice3DSettle 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 0 25px rgba(255,215,0,0.7));
 }
 
 @keyframes dice3DSettle {
@@ -1027,10 +1028,6 @@ body {
   60% { transform: scale(0.95); }
   80% { transform: scale(1.08); }
   100% { transform: scale(1.05); }
-}
-
-.dice-scene.settled .dice-cube {
-  filter: drop-shadow(0 0 25px rgba(255,215,0,0.7));
 }
 
 /* 骰子立方体 */
