@@ -178,8 +178,6 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   if (!savedState) {
     store.resetMiniGameCounts()
   }
-  const events = store.getEvents()
-  const npcEvents = store.getNpcEvents()
 
   // 游戏状态 - 如果有存档则从存档恢复，否则新建
   const players = savedState
@@ -1413,6 +1411,11 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   async function handleTileLanding(pi) {
     const p = players[pi]
     const type = getTileType(p.position, npcTiles)
+    
+    // 每次实时获取最新的事件列表，避免状态残留
+    const events = store.getEvents()
+    const npcEvents = store.getNpcEvents()
+
     if (type === 'event' && events.length > 0) {
       // 随机事件格子 → 仅从用户自定义事件中抽取
       setHint('随机事件触发！')

@@ -45,10 +45,10 @@ const DEFAULT_EVENTS = [
   { id: genId(), name: '获得一个50元红包', icon: EVENT_ICONS.hongbao50, type: 'reward', description: '超级大红包！' },
   { id: genId(), name: '洗碗一次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗一次' },
   { id: genId(), name: '扫地一次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地一次' },
-  { id: genId(), name: '洗碗两次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗一次' },
-  { id: genId(), name: '扫地两次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地一次' },
-  { id: genId(), name: '洗碗三次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗一次' },
-  { id: genId(), name: '扫地三次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地一次' },
+  { id: genId(), name: '洗碗两次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗两次' },
+  { id: genId(), name: '扫地两次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地两次' },
+  { id: genId(), name: '洗碗三次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗三次' },
+  { id: genId(), name: '扫地三次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地三次' },
   { id: genId(), name: '唱一首歌', icon: EVENT_ICONS.sing, type: 'punishment', description: '为大家唱一首歌' },
 ]
 
