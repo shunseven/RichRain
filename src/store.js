@@ -139,6 +139,7 @@ class Store {
     localStorage.removeItem('rr_events')
     localStorage.removeItem('rr_npcevents')
     localStorage.removeItem('rr_finalprize')
+    localStorage.removeItem('rr_game_progress')
     this._init()
   }
 
@@ -148,6 +149,15 @@ class Store {
     this.saveMiniGames(games)
     return games
   }
+
+  // 游戏进度存档
+  saveGameProgress(state) { localStorage.setItem('rr_game_progress', JSON.stringify(state)) }
+  getGameProgress() {
+    const data = localStorage.getItem('rr_game_progress')
+    return data ? JSON.parse(data) : null
+  }
+  clearGameProgress() { localStorage.removeItem('rr_game_progress') }
+  hasGameProgress() { return !!localStorage.getItem('rr_game_progress') }
 }
 
 export const store = new Store()

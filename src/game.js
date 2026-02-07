@@ -3,7 +3,7 @@ import { Leafer, Rect, Text, Ellipse } from 'leafer-ui'
 import { store, SYSTEM_ICONS } from './store.js'
 import { resolveAllImages } from './imageDB.js'
 import {
-  initAudio, startBGM, stopBGM,
+  initAudio, startBGM, stopBGM, speedUpBGM,
   playDiceRoll, playDiceResult, playStep, playCoinGain, playCoinLoss,
   playStarCollect, playEventTrigger, playRewardEvent, playPunishmentEvent,
   playSystemEvent, playNpcEncounter,
@@ -133,19 +133,51 @@ function getTileSide(i) {
 // ========================================
 // 主游戏函数
 // ========================================
-export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
+export function startGame(container, navigate, totalRounds, diceMode = 'auto', savedState = null) {
   const characters = store.getCharacters()
   if (characters.length === 0) { alert('请先添加至少一个角色！'); navigate('menu'); return }
 
-  store.resetMiniGameCounts()
+  // 如果不是恢复存档，则重置小游戏次数
+  if (!savedState) {
+    store.resetMiniGameCounts()
+  }
   const events = store.getEvents()
   const npcEvents = store.getNpcEvents()
 
-  // 游戏状态
-  const players = characters.map(c => ({ ...c, coins: 5, stars: 0, position: 0 }))
-  let currentRound = 1, currentPI = 0, phase = 'waiting_dice'
+  // 游戏状态 - 如果有存档则从存档恢复，否则新建
+  const players = savedState
+    ? savedState.players
+    : characters.map(c => ({ ...c, coins: 5, stars: 0, position: 0, eventLog: [] }))
+  let currentRound = savedState ? savedState.currentRound : 1
+  let currentPI = savedState ? savedState.currentPI : 0
+  let phase = 'waiting_dice'
+  // 使用存档的总轮数和骰子模式（存档优先）
+  if (savedState) {
+    totalRounds = savedState.totalRounds
+    diceMode = savedState.diceMode
+  }
   // 星星初始位置 - 随机放在任意格子上
-  let starPos = Math.floor(Math.random() * BOARD_SIZE)
+  let starPos = savedState ? savedState.starPos : Math.floor(Math.random() * BOARD_SIZE)
+
+  // 最后三轮状态
+  let starPos2 = savedState ? savedState.starPos2 : -1           // 第二颗星位置 (-1 = 未激活)
+  let star2Active = savedState ? savedState.star2Active : false     // 第二颗星是否激活
+  let isLastThreeRounds = savedState ? savedState.isLastThreeRounds : false
+
+  // === 保存游戏进度的辅助函数 ===
+  function saveProgress() {
+    store.saveGameProgress({
+      players: players.map(p => ({ id: p.id, name: p.name, avatar: p.avatar, color: p.color, coins: p.coins, stars: p.stars, position: p.position, eventLog: p.eventLog })),
+      currentRound,
+      currentPI,
+      totalRounds,
+      diceMode,
+      starPos,
+      starPos2,
+      star2Active,
+      isLastThreeRounds,
+    })
+  }
 
   // ===== DOM 结构 =====
   container.innerHTML = `
@@ -475,6 +507,42 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
   })
   leafer.add(starLabel)
 
+  // ===== 第二颗星星视觉元素（最后三轮激活）=====
+  const star2GlowOuter = new Ellipse({
+    x: -200, y: -200, width: STAR_SIZE * 1.5, height: STAR_SIZE * 1.5,
+    fill: { type: 'radial', stops: [
+      { offset: 0, color: 'rgba(255,120,120,0.35)' },
+      { offset: 0.5, color: 'rgba(255,120,120,0.12)' },
+      { offset: 1, color: 'rgba(255,120,120,0)' },
+    ]},
+    shadow: { x: 0, y: 0, blur: 25, color: 'rgba(255,120,120,0.5)' },
+    opacity: 0,
+  })
+  leafer.add(star2GlowOuter)
+
+  const star2GlowInner = new Ellipse({
+    x: -200, y: -200, width: STAR_SIZE, height: STAR_SIZE,
+    fill: { type: 'radial', stops: [
+      { offset: 0, color: 'rgba(255,180,100,0.45)' },
+      { offset: 0.6, color: 'rgba(255,160,80,0.15)' },
+      { offset: 1, color: 'rgba(255,160,80,0)' },
+    ]},
+    opacity: 0,
+  })
+  leafer.add(star2GlowInner)
+
+  const star2Text = new Text({
+    x: -200, y: -200, width: TILE_W, text: '⭐', fontSize: STAR_FONT, textAlign: 'center',
+    opacity: 0,
+  })
+  leafer.add(star2Text)
+
+  const star2Label = new Text({
+    x: -200, y: -200, width: TILE_W, text: '10💰', fill: '#ff6b6b', fontSize: 14,
+    fontWeight: 'bold', textAlign: 'center', opacity: 0,
+  })
+  leafer.add(star2Label)
+
   // ===== 星星综合动画 =====
   let starAnimT = 0
   const starPulseTimer = setInterval(() => {
@@ -535,6 +603,32 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
       tw.el.scaleX = pScale
       tw.el.scaleY = pScale
     }
+
+    // --- 第二颗星星动画 ---
+    if (star2Active && starPos2 >= 0) {
+      const cx2 = tilePos[starPos2].x + TILE_W / 2
+      const cy2 = tilePos[starPos2].y + TILE_W / 2
+      const floatY2 = Math.sin(starAnimT * 0.8 + 1) * 4
+
+      // 呼吸光晕
+      const pulse2 = Math.sin(starAnimT + 0.5)
+      const outer2Scale = 1 + pulse2 * 0.15
+      const outer2Half = STAR_SIZE * 0.75
+      star2GlowOuter.x = cx2 - outer2Half * outer2Scale
+      star2GlowOuter.y = cy2 - outer2Half * outer2Scale - 20
+      star2GlowOuter.width = STAR_SIZE * 1.5 * outer2Scale
+      star2GlowOuter.height = STAR_SIZE * 1.5 * outer2Scale
+
+      const inner2Scale = 1 + pulse2 * 0.08
+      const inner2Half = STAR_SIZE * 0.5
+      star2GlowInner.x = cx2 - inner2Half * inner2Scale
+      star2GlowInner.y = cy2 - inner2Half * inner2Scale - 20
+      star2GlowInner.width = STAR_SIZE * inner2Scale
+      star2GlowInner.height = STAR_SIZE * inner2Scale
+
+      // 上下浮动
+      star2Text.y = cy2 - STAR_FONT / 2 - 30 + floatY2
+    }
   }, 50)
 
   function moveStarElements(pos) {
@@ -549,12 +643,101 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
   }
 
   function moveStar() {
-    // 星星可以移动到任意格子（排除当前位置）
+    // 星星可以移动到任意格子（排除当前位置和第二颗星位置）
     const candidates = []
-    for (let i = 0; i < BOARD_SIZE; i++) { if (i !== starPos) candidates.push(i) }
+    for (let i = 0; i < BOARD_SIZE; i++) { if (i !== starPos && i !== starPos2) candidates.push(i) }
     if (candidates.length === 0) return
     starPos = candidates[Math.floor(Math.random() * candidates.length)]
     moveStarElements(tilePos[starPos])
+  }
+
+  // ===== 第二颗星管理函数 =====
+  function moveStar2Elements(pos) {
+    if (!pos) return
+    const cx2 = pos.x + TILE_W / 2
+    const cy2 = pos.y + TILE_W / 2
+    star2GlowOuter.x = cx2 - STAR_SIZE * 0.75
+    star2GlowOuter.y = cy2 - STAR_SIZE * 0.75 - 20
+    star2GlowInner.x = cx2 - STAR_SIZE * 0.5
+    star2GlowInner.y = cy2 - STAR_SIZE * 0.5 - 20
+    star2Text.x = pos.x
+    star2Text.y = cy2 - STAR_FONT / 2 - 30
+    star2Label.x = pos.x
+    star2Label.y = cy2 + STAR_FONT / 2 - 8
+  }
+
+  function showStar2(pos) {
+    starPos2 = pos
+    star2Active = true
+    star2GlowOuter.opacity = 1
+    star2GlowInner.opacity = 1
+    star2Text.opacity = 1
+    star2Label.opacity = 1
+    moveStar2Elements(tilePos[pos])
+  }
+
+  function hideStar2() {
+    star2Active = false
+    star2GlowOuter.opacity = 0
+    star2GlowInner.opacity = 0
+    star2Text.opacity = 0
+    star2Label.opacity = 0
+  }
+
+  // ===== 最后三轮弹窗（5秒后自动消失）=====
+  function showLastThreeRoundsPopup() {
+    return new Promise(resolve => {
+      const ov = document.createElement('div')
+      ov.className = 'event-result-overlay'
+      ov.innerHTML = `
+        <div class="event-result" style="text-align:center">
+          <div style="font-size:80px;margin-bottom:15px">🔥</div>
+          <div class="event-name" style="color:#ff6b6b;font-size:1.8em">最后三轮！</div>
+          <div style="color:rgba(255,255,255,0.9);font-size:1.3em;margin:20px 0">
+            ⚡ 游戏进入冲刺阶段 ⚡
+          </div>
+          <div style="color:rgba(255,215,0,0.9);font-size:1.1em;margin:10px 0;line-height:2">
+            ⭐ 场上将出现两颗星星<br/>
+            🎵 背景音乐加速！
+          </div>
+          <div class="continue-hint" style="margin-top:25px;opacity:0.6">5秒后自动关闭...</div>
+        </div>`
+      document.body.appendChild(ov)
+      // 5秒后自动消失
+      setTimeout(() => {
+        if (ov.parentNode) {
+          ov.remove()
+          resolve()
+        }
+      }, 5000)
+      // 也支持按空格键提前关闭
+      const handler = (e) => {
+        if (e.code === 'Space') {
+          document.removeEventListener('keydown', handler)
+          if (ov.parentNode) {
+            ov.remove()
+            resolve()
+          }
+        }
+      }
+      document.addEventListener('keydown', handler)
+      // 5秒后清理键盘监听
+      setTimeout(() => document.removeEventListener('keydown', handler), 5100)
+    })
+  }
+
+  // ===== 激活最后三轮模式 =====
+  async function activateLastThreeRounds() {
+    isLastThreeRounds = true
+    await showLastThreeRoundsPopup()
+    // 加速BGM
+    speedUpBGM()
+    // 激活第二颗星星（固定在场上）
+    const candidates = []
+    for (let i = 0; i < BOARD_SIZE; i++) { if (i !== starPos) candidates.push(i) }
+    if (candidates.length > 0) {
+      showStar2(candidates[Math.floor(Math.random() * candidates.length)])
+    }
   }
 
   // 角色棋子
@@ -976,12 +1159,26 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
       updateInfoPanel()
       playStep()  // 🔊 移动一步音效
       await sleep(350)
-      // 检查星星
+      // 检查星星1
       if (p.position === starPos && p.coins >= 10) {
         p.coins -= 10; p.stars++
         updateInfoPanel(); updatePlayersPanel()
         await showStarPopup(p)
         moveStar()
+      }
+      // 检查星星2（最后三轮激活）
+      if (star2Active && p.position === starPos2 && p.coins >= 10) {
+        p.coins -= 10; p.stars++
+        updateInfoPanel(); updatePlayersPanel()
+        await showStarPopup(p)
+        // 移动星星2到新位置
+        const candidates = []
+        for (let i = 0; i < BOARD_SIZE; i++) {
+          if (i !== starPos && i !== starPos2) candidates.push(i)
+        }
+        if (candidates.length > 0) {
+          showStar2(candidates[Math.floor(Math.random() * candidates.length)])
+        }
       }
     }
   }
@@ -1070,7 +1267,14 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
         break
       }
       case 'sys_near_star': {
-        const targetPos = (starPos - 2 + BOARD_SIZE) % BOARD_SIZE
+        // 如果有两颗星，选择距离最近的一颗
+        let nearestStarPos = starPos
+        if (star2Active && starPos2 >= 0) {
+          const dist1 = ((starPos - p.position) + BOARD_SIZE) % BOARD_SIZE
+          const dist2 = ((starPos2 - p.position) + BOARD_SIZE) % BOARD_SIZE
+          nearestStarPos = dist1 <= dist2 ? starPos : starPos2
+        }
+        const targetPos = (nearestStarPos - 2 + BOARD_SIZE) % BOARD_SIZE
         await showSystemEventResult(sysEvent, `${p.name} 瞬移到星星前两格！`)
         playTeleport()  // 🔊 传送音效
         await teleportPlayer(pi, targetPos)
@@ -1096,6 +1300,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
       playEventTrigger()  // 🔊 事件触发音效
       const ev = await showRoller('❗ 随机事件抽取中...', events, Math.min(6, events.length))
       if (ev) {
+        p.eventLog.push({ category: 'event', name: ev.name, type: ev.type, icon: ev.icon })
         await showEventResult(ev)
       }
     } else if (type === 'system') {
@@ -1125,6 +1330,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
       playNpcEncounter()  // 🔊 NPC遭遇音效
       const ev = await showRoller(title, npcEvents, 6, randomNpc)
       if (ev) {
+        p.eventLog.push({ category: 'npc', name: ev.name, type: ev.type, icon: ev.icon, npcName: randomNpc ? randomNpc.name : '' })
         await showEventResult(ev)
       }
     }
@@ -1178,6 +1384,24 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
   // ===== 游戏主循环 =====
   async function gameLoop() {
     updateInfoPanel(); updatePlayersPanel()
+
+    // 如果总轮数 ≤ 3，游戏一开始就进入最后三轮模式
+    if (!isLastThreeRounds && totalRounds <= 3) {
+      await activateLastThreeRounds()
+    }
+
+    // 恢复存档时：如果已在最后三轮且第二颗星已激活，恢复显示
+    if (savedState && star2Active && starPos2 >= 0) {
+      showStar2(starPos2)
+    }
+    // 恢复存档时：如果已在最后三轮，恢复BGM加速
+    if (savedState && isLastThreeRounds) {
+      speedUpBGM()
+    }
+
+    // 保存初始进度
+    saveProgress()
+
     setHint(`轮到 ${players[currentPI].name}，按 Enter 摇骰子 🎲`)
     phase = 'waiting_dice'
   }
@@ -1212,6 +1436,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
         currentRound++
         if (currentRound > totalRounds) {
           phase = 'gameover'
+          store.clearGameProgress()  // 🗑️ 游戏正常结束，清除存档
           stopBGM()  // 🔊 停止背景音乐
           playGameOver()  // 🔊 游戏结束音效
           clearInterval(starPulseTimer)  // 清理星星动画
@@ -1221,7 +1446,15 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
           navigate('results', { players })
           return
         }
+
+        // 检查是否进入最后三轮
+        if (!isLastThreeRounds && currentRound >= totalRounds - 2 && totalRounds > 3) {
+          await activateLastThreeRounds()
+        }
       }
+
+      // 保存游戏进度
+      saveProgress()
 
       // 继续游戏
       phase = 'waiting_dice'

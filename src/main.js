@@ -24,7 +24,7 @@ export function navigate(screen, params = {}) {
     case 'npc-event-editor': showNpcEventEditor(app, navigate); break
     case 'prize-editor': showPrizeEditor(app, navigate); break
     case 'round-setup': showRoundSetup(); break
-    case 'game': startGame(app, navigate, params.rounds, params.diceMode); break
+    case 'game': startGame(app, navigate, params.rounds, params.diceMode, params.savedState || null); break
     case 'results': showResults(params); break
     default: showMenu()
   }
@@ -32,12 +32,22 @@ export function navigate(screen, params = {}) {
 
 // ===== 主菜单 =====
 function showMenu() {
+  const hasSave = store.hasGameProgress()
+  const savedState = hasSave ? store.getGameProgress() : null
+
   app.innerHTML = `
     <div class="menu-screen">
       <div class="menu-super-title">🧧 红包雨3.0 🧧</div>
       <div class="menu-title">🎉 新春派对大富翁 🎉</div>
       <div class="menu-subtitle">🧧 恭喜发财 · 万事如意 🧧</div>
       <div class="menu-buttons">
+        ${hasSave ? `
+        <button class="menu-btn continue" data-action="continue">
+          <span class="menu-btn-icon">▶️</span>
+          继续游戏
+          <span class="continue-detail">第 ${savedState.currentRound}/${savedState.totalRounds} 轮 · ${savedState.players.length} 位玩家</span>
+        </button>
+        ` : ''}
         <button class="menu-btn primary" data-action="start">
           <span class="menu-btn-icon">🎲</span>
           开始游戏
@@ -73,7 +83,12 @@ function showMenu() {
   app.querySelectorAll('.menu-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const action = btn.dataset.action
-      if (action === 'start') {
+      if (action === 'continue') {
+        const saved = store.getGameProgress()
+        if (saved) {
+          navigate('game', { rounds: saved.totalRounds, diceMode: saved.diceMode, savedState: saved })
+        }
+      } else if (action === 'start') {
         navigate('round-setup')
       } else {
         navigate(action)
@@ -124,6 +139,7 @@ function showRoundSetup() {
       alert('请输入1-50之间的轮数')
       return
     }
+    store.clearGameProgress()  // 开始新游戏时清除旧存档
     navigate('game', { rounds, diceMode })
   })
 
@@ -143,6 +159,26 @@ function showResults(params = {}) {
     return b.coins - a.coins
   })
 
+  // 构建每个角色的事件记录HTML
+  function buildEventLogHTML(player) {
+    const log = player.eventLog || []
+    if (log.length === 0) return '<div class="event-log-empty">本局没有触发事件</div>'
+    const rewards = log.filter(e => e.type === 'reward')
+    const punishments = log.filter(e => e.type === 'punishment')
+    let html = ''
+    const formatTag = (e, cls) => {
+      const label = e.category === 'npc' && e.npcName ? `从${e.npcName}获取「${e.name}」` : e.name
+      return `<span class="event-log-tag ${cls}"><img src="${e.icon}" class="event-log-icon"/>${label}</span>`
+    }
+    if (rewards.length > 0) {
+      html += `<div class="event-log-section"><div class="event-log-label reward">✨ 奖励</div><div class="event-log-items">${rewards.map(e => formatTag(e, 'reward')).join('')}</div></div>`
+    }
+    if (punishments.length > 0) {
+      html += `<div class="event-log-section"><div class="event-log-label punishment">😤 惩罚</div><div class="event-log-items">${punishments.map(e => formatTag(e, 'punishment')).join('')}</div></div>`
+    }
+    return html
+  }
+
   app.innerHTML = `
     <div class="result-screen">
       <h1>🏆 游戏结束 🏆</h1>
@@ -157,6 +193,7 @@ function showResults(params = {}) {
             </div>
             ${i === 0 ? `<div class="result-prize"><img src="${prize.icon}" title="${prize.name}"/><div style="font-size:0.75em;color:#ffd700;margin-top:4px">${prize.name}</div></div>` : ''}
           </div>
+          <div class="result-event-log">${buildEventLogHTML(p)}</div>
         `).join('')}
       </div>
       <button class="btn-home" id="btn-go-home">返回主菜单</button>

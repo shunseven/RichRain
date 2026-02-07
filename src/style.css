@@ -161,6 +161,39 @@ body {
   border-color: #ffd700;
 }
 
+/* 继续游戏按钮 */
+.menu-btn.continue {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  border: 2px solid rgba(255,215,0,0.7);
+  font-size: 1.4em;
+  padding: 18px 20px;
+  font-weight: bold;
+  letter-spacing: 3px;
+  position: relative;
+  animation: continueGlow 2s ease-in-out infinite;
+}
+
+.menu-btn.continue:hover {
+  background: linear-gradient(135deg, #f1c40f, #f39c12);
+  box-shadow: 0 8px 30px rgba(255,215,0,0.4), 0 0 25px rgba(243,156,18,0.4);
+  border-color: #ffd700;
+}
+
+.continue-detail {
+  display: block;
+  font-size: 0.5em;
+  font-weight: normal;
+  letter-spacing: 1px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+@keyframes continueGlow {
+  0%, 100% { box-shadow: 0 4px 15px rgba(243,156,18,0.3); }
+  50% { box-shadow: 0 4px 25px rgba(255,215,0,0.5), 0 0 15px rgba(243,156,18,0.3); }
+}
+
 .menu-btn-icon {
   font-size: 1.5em;
 }
@@ -1561,6 +1594,79 @@ body {
 .result-screen .btn-home:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 25px rgba(255,215,0,0.4);
+}
+
+/* 结果页事件记录 */
+.result-event-log {
+  width: 100%;
+  max-width: 600px;
+  margin: -8px auto 8px;
+  padding: 8px 16px 10px;
+  background: linear-gradient(135deg, rgba(30,5,5,0.6), rgba(50,10,10,0.5));
+  border: 1px solid rgba(255,215,0,0.1);
+  border-radius: 0 0 12px 12px;
+  border-top: none;
+}
+.event-log-empty {
+  color: rgba(255,255,255,0.3);
+  font-size: 0.8em;
+  text-align: center;
+  padding: 4px 0;
+}
+.event-log-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0;
+}
+.event-log-label {
+  font-size: 0.75em;
+  font-weight: bold;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.event-log-label.reward {
+  background: rgba(46,204,113,0.2);
+  color: #2ecc71;
+  border: 1px solid rgba(46,204,113,0.3);
+}
+.event-log-label.punishment {
+  background: rgba(231,76,60,0.2);
+  color: #e74c3c;
+  border: 1px solid rgba(231,76,60,0.3);
+}
+.event-log-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.event-log-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75em;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.event-log-tag.reward {
+  background: rgba(46,204,113,0.12);
+  color: rgba(46,204,113,0.9);
+  border: 1px solid rgba(46,204,113,0.2);
+}
+.event-log-tag.punishment {
+  background: rgba(231,76,60,0.12);
+  color: rgba(231,76,60,0.9);
+  border: 1px solid rgba(231,76,60,0.2);
+}
+.event-log-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  vertical-align: middle;
 }
 
 /* 所有玩家信息侧栏 - 喜庆风格 */

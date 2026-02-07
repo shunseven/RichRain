@@ -381,12 +381,12 @@ export function playClick() {
 // =============================================
 // 🎵 背景音乐 - 恭喜发财 Funky Pop 风格（带变调升Key）
 // =============================================
-export function startBGM() {
+export function startBGM(bpm) {
   if (bgmPlaying) return
   bgmPlaying = true
 
   const ctx = getCtx()
-  const BPM = 130  // 恭喜发财原曲节奏感
+  const BPM = bpm || 130  // 恭喜发财原曲节奏感（可传入加速BPM）
   const beat = 60 / BPM
   const eighth = beat / 2
   const sixteenth = beat / 4
@@ -653,6 +653,13 @@ export function startBGM() {
   function scheduleBar() {
     if (!bgmPlaying) return
 
+    // 每4小节清理已停止的旧节点引用，防止数组无限增长导致卡顿
+    if (barCount > 0 && barCount % 4 === 0) {
+      const intervalId = bgmNodes._intervalId
+      bgmNodes = []
+      bgmNodes._intervalId = intervalId
+    }
+
     const now = ctx.currentTime + 0.05
     const shift = KEY_SHIFTS[barCount % KEY_SHIFTS.length]
 
@@ -749,6 +756,13 @@ export function stopBGM() {
     try { node.stop() } catch (e) { /* ignore */ }
   })
   bgmNodes = []
+}
+
+// 加速BGM（最后三轮使用）
+export function speedUpBGM() {
+  stopBGM()
+  // 短暂延迟确保干净切换
+  setTimeout(() => startBGM(165), 100)
 }
 
 // 音量控制
