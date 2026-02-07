@@ -1355,6 +1355,13 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
       if (ev) {
         p.eventLog.push({ category: 'event', name: ev.name, type: ev.type, icon: ev.icon })
         await showEventResult(ev)
+
+        // 检查是否有金币奖励
+        if (ev.coins) {
+          p.coins += ev.coins
+          updateInfoPanel(); updatePlayersPanel()
+          await showCoinPopup(p, ev.coins)
+        }
       }
     } else if (type === 'system') {
       // 系统事件格子 → 从5个系统事件中抽取

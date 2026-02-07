@@ -34,18 +34,16 @@ const DEFAULT_MINIGAMES = [
 ]
 
 const DEFAULT_EVENTS = [
-  { id: genId(), name: '小零食', icon: EVENT_ICONS.xiaolingshi, type: 'reward', description: '获得美味小零食' },
-  { id: genId(), name: '红包', icon: EVENT_ICONS.hongbao, type: 'reward', description: '收到一个红包' },
+  { id: genId(), name: '火鸡面', icon: EVENT_ICONS.huojimian, type: 'reward', description: '获得一包火鸡面' },
+  { id: genId(), name: '辣条', icon: EVENT_ICONS.latiao, type: 'reward', description: '获得一包辣条' },
+  { id: genId(), name: '薯片', icon: EVENT_ICONS.shupian, type: 'reward', description: '获得一包薯片' },
+  { id: genId(), name: '抽零食', icon: EVENT_ICONS.choulingshi, type: 'reward', description: '从零食箱抽一个零食' },
+  { id: genId(), name: '获得一个10元红包', icon: EVENT_ICONS.hongbao10, type: 'reward', description: '运气不错！' },
+  { id: genId(), name: '获得一个20元红包', icon: EVENT_ICONS.hongbao20, type: 'reward', description: '运气真好！' },
+  { id: genId(), name: '获得一个5元红包', icon: EVENT_ICONS.hongbao5, type: 'reward', description: '小赚一笔！'},
+  { id: genId(), name: '获得一个50元红包', icon: EVENT_ICONS.hongbao50, type: 'reward', description: '超级大红包！' },
   { id: genId(), name: '洗碗一次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗一次' },
   { id: genId(), name: '扫地一次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地一次' },
-  { id: genId(), name: '贴春联', icon: EVENT_ICONS.tiechunlian, type: 'reward', description: '帮忙贴春联' },
-  { id: genId(), name: '放鞭炮', icon: EVENT_ICONS.fangbianpao, type: 'reward', description: '放鞭炮庆祝新年' },
-  { id: genId(), name: '包饺子', icon: EVENT_ICONS.baojiaozi, type: 'reward', description: '一起包饺子，其乐融融' },
-  { id: genId(), name: '拜年', icon: EVENT_ICONS.bainian, type: 'reward', description: '给长辈拜年' },
-  { id: genId(), name: '守岁', icon: EVENT_ICONS.shousui, type: 'reward', description: '坚持守岁到凌晨' },
-  { id: genId(), name: '看春晚', icon: EVENT_ICONS.kanchunwan, type: 'reward', description: '一起看春晚' },
-  { id: genId(), name: '穿新衣', icon: EVENT_ICONS.chuanxinyi, type: 'reward', description: '穿上新衣服真开心' },
-  { id: genId(), name: '发压岁钱', icon: EVENT_ICONS.fayasuiqian, type: 'punishment', description: '给小朋友发压岁钱' },
 ]
 
 const DEFAULT_NPC_EVENTS = [
@@ -81,6 +79,55 @@ class Store {
     }
     if (!localStorage.getItem('rr_events')) {
       this.saveEvents(DEFAULT_EVENTS)
+    } else {
+      // 检查是否需要更新事件列表（例如替换旧的红包事件）
+      let current = this.getEvents()
+      let changed = false
+      
+      // 更新现有事件的图标
+      DEFAULT_EVENTS.forEach(def => {
+        const existing = current.find(e => e.name === def.name)
+        if (existing) {
+          if (existing.icon !== def.icon) {
+             existing.icon = def.icon
+             changed = true
+          }
+        }
+      })
+
+      // 移除旧的通用"红包"事件
+      const oldRedPacketIdx = current.findIndex(e => e.name === '红包')
+      if (oldRedPacketIdx !== -1) {
+        current.splice(oldRedPacketIdx, 1)
+        changed = true
+      }
+
+      // 移除旧的"小零食"事件
+      const oldSnackIdx = current.findIndex(e => e.name === '小零食')
+      if (oldSnackIdx !== -1) {
+        current.splice(oldSnackIdx, 1)
+        changed = true
+      }
+
+      // 添加新的零食事件（如果不存在）
+      const newSnacks = DEFAULT_EVENTS.filter(def => ['火鸡面', '辣条', '薯片', '抽零食'].includes(def.name))
+      newSnacks.forEach(def => {
+        if (!current.find(e => e.name === def.name)) {
+          current.push(def)
+          changed = true
+        }
+      })
+
+      // 添加新的红包事件（如果不存在）
+      const newEvents = DEFAULT_EVENTS.filter(def => def.name.includes('元红包'))
+      newEvents.forEach(def => {
+        if (!current.find(e => e.name === def.name)) {
+          current.push(def)
+          changed = true
+        }
+      })
+
+      if (changed) this.saveEvents(current)
     }
     if (!localStorage.getItem('rr_npcevents')) {
       this.saveNpcEvents(DEFAULT_NPC_EVENTS)
