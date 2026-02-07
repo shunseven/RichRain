@@ -24,7 +24,7 @@ export function navigate(screen, params = {}) {
     case 'npc-event-editor': showNpcEventEditor(app, navigate); break
     case 'prize-editor': showPrizeEditor(app, navigate); break
     case 'round-setup': showRoundSetup(); break
-    case 'game': startGame(app, navigate, params.rounds); break
+    case 'game': startGame(app, navigate, params.rounds, params.diceMode); break
     case 'results': showResults(params); break
     default: showMenu()
   }
@@ -88,10 +88,35 @@ function showRoundSetup() {
     <div class="round-setup">
       <h2>🎲 设置游戏轮数</h2>
       <input type="number" id="round-input" min="1" max="50" value="5" />
+      <div class="dice-mode-selector">
+        <div class="dice-mode-label">🎲 骰子模式</div>
+        <div class="dice-mode-options">
+          <button class="dice-mode-btn active" data-mode="auto" id="mode-auto">
+            <span class="mode-icon">🤖</span>
+            <span class="mode-text">自动摇骰子</span>
+            <span class="mode-desc">系统随机摇出点数</span>
+          </button>
+          <button class="dice-mode-btn" data-mode="external" id="mode-external">
+            <span class="mode-icon">🎯</span>
+            <span class="mode-text">场外摇骰子</span>
+            <span class="mode-desc">手动输入骰子点数</span>
+          </button>
+        </div>
+      </div>
       <button class="btn-start" id="btn-start-game">开始游戏 🎉</button>
       <button class="btn-back" style="margin-top:15px" id="btn-back-menu">返回菜单</button>
     </div>
   `
+
+  let diceMode = 'auto'
+  const modeButtons = app.querySelectorAll('.dice-mode-btn')
+  modeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      modeButtons.forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      diceMode = btn.dataset.mode
+    })
+  })
 
   document.getElementById('btn-start-game').addEventListener('click', () => {
     const rounds = parseInt(document.getElementById('round-input').value) || 5
@@ -99,7 +124,7 @@ function showRoundSetup() {
       alert('请输入1-50之间的轮数')
       return
     }
-    navigate('game', { rounds })
+    navigate('game', { rounds, diceMode })
   })
 
   document.getElementById('btn-back-menu').addEventListener('click', () => {

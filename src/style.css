@@ -485,6 +485,147 @@ body {
   background: linear-gradient(135deg, #e74c3c, #c0392b);
 }
 
+/* ===== 骰子模式选择器 ===== */
+.dice-mode-selector {
+  margin-top: 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.dice-mode-label {
+  color: #ffd700;
+  font-size: 1.2em;
+  font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.dice-mode-options {
+  display: flex;
+  gap: 15px;
+}
+
+.dice-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 15px 25px;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,215,0,0.2);
+  border-radius: 15px;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.3s;
+  min-width: 140px;
+}
+
+.dice-mode-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,215,0,0.4);
+}
+
+.dice-mode-btn.active {
+  background: rgba(255,215,0,0.12);
+  border-color: #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 20px rgba(255,215,0,0.15);
+}
+
+.dice-mode-btn .mode-icon {
+  font-size: 1.8em;
+}
+
+.dice-mode-btn .mode-text {
+  font-size: 1em;
+  font-weight: bold;
+}
+
+.dice-mode-btn .mode-desc {
+  font-size: 0.75em;
+  opacity: 0.6;
+}
+
+/* ===== 场外骰子输入区域 ===== */
+.dice-input-area {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,215,0,0.15);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+  opacity: 0.75;
+  transition: opacity 0.25s;
+  z-index: 210;
+}
+
+.dice-input-area:hover {
+  opacity: 1;
+}
+
+.dice-input-hint {
+  color: rgba(255,215,0,0.7);
+  font-size: 0.9em;
+  font-weight: bold;
+  text-shadow: none;
+  animation: hintPulse 2s ease-in-out infinite;
+}
+
+@keyframes hintPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.dice-number-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.dice-num-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,215,0,0.25);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,215,0,0.7);
+  font-size: 1.15em;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.dice-num-btn:hover {
+  transform: translateY(-2px) scale(1.08);
+  background: rgba(255,215,0,0.15);
+  border-color: rgba(255,215,0,0.5);
+  color: #ffd700;
+  box-shadow: 0 4px 12px rgba(255,215,0,0.2);
+}
+
+.dice-num-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.dice-display.dice-rolling {
+  animation: diceShake 0.1s ease-in-out infinite;
+}
+
+/* ===== 小游戏胜者高亮 ===== */
+.rank-player.winner {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 20px rgba(255,215,0,0.4) !important;
+  background: rgba(255,215,0,0.1) !important;
+}
+
 /* ===== 游戏界面 ===== */
 .game-screen {
   width: 100vw;
@@ -1318,6 +1459,19 @@ body {
   padding: 6px 8px;
   margin: 0 -8px;
   text-shadow: 0 0 8px rgba(255,215,0,0.3);
+}
+
+.all-players-panel .ap-rank {
+  font-size: 1.1em;
+  min-width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.all-players-panel .ap-rank-num {
+  color: rgba(255,255,255,0.35);
+  font-size: 0.8em;
+  font-weight: bold;
 }
 
 .all-players-panel .ap-avatar {

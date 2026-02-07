@@ -70,7 +70,7 @@ function getTileSide(i) {
 // ========================================
 // 主游戏函数
 // ========================================
-export function startGame(container, navigate, totalRounds) {
+export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
   const characters = store.getCharacters()
   if (characters.length === 0) { alert('请先添加至少一个角色！'); navigate('menu'); return }
 
@@ -406,10 +406,19 @@ export function startGame(container, navigate, totalRounds) {
 
   function updatePlayersPanel() {
     const panelEl = document.getElementById('all-players')
+    // 按星星（降序）→ 金币（降序）排序，计算排名
+    const sorted = players.map((p, i) => ({ ...p, origIdx: i }))
+      .sort((a, b) => b.stars !== a.stars ? b.stars - a.stars : b.coins - a.coins)
+    const rankIcons = ['🥇', '🥈', '🥉']
+    // 为每个玩家分配排名
+    const rankMap = {}
+    sorted.forEach((p, i) => { rankMap[p.origIdx] = i })
+
     panelEl.innerHTML = `
       <div class="ap-title">所有玩家</div>
-      ${players.map((p, i) => `
-        <div class="ap-item ${i === currentPI ? 'active' : ''}">
+      ${sorted.map((p, sortIdx) => `
+        <div class="ap-item ${p.origIdx === currentPI ? 'active' : ''}">
+          <span class="ap-rank">${sortIdx < 3 ? rankIcons[sortIdx] : `<span class="ap-rank-num">${sortIdx + 1}</span>`}</span>
           <div class="ap-avatar"><img src="${p.avatar}"/></div>
           <span>${p.name}</span>
           <span style="margin-left:auto">💰${p.coins} ⭐${p.stars}</span>
@@ -421,6 +430,9 @@ export function startGame(container, navigate, totalRounds) {
 
   // ===== 骰子动画 =====
   function rollDice() {
+    if (diceMode === 'external') {
+      return rollDiceExternal()
+    }
     return new Promise(resolve => {
       const result = Math.floor(Math.random() * 6) + 1
       const ov = document.createElement('div'); ov.className = 'dice-overlay'
@@ -437,6 +449,59 @@ export function startGame(container, navigate, totalRounds) {
           setTimeout(() => { ov.remove(); resolve(result) }, 900)
         }
       }, 90)
+    })
+  }
+
+  // ===== 场外骰子模式 =====
+  function rollDiceExternal() {
+    return new Promise(resolve => {
+      const ov = document.createElement('div'); ov.className = 'dice-overlay'
+      ov.innerHTML = `
+        <div class="dice-display dice-rolling" id="dice-num">1</div>
+        <div class="dice-input-area">
+          <div class="dice-input-hint">🎯 请输入场外骰子点数</div>
+          <div class="dice-number-buttons" id="dice-buttons">
+            ${[1,2,3,4,5,6].map(n => `<button class="dice-num-btn" data-num="${n}">${n}</button>`).join('')}
+          </div>
+        </div>`
+      document.body.appendChild(ov)
+      const dn = ov.querySelector('#dice-num')
+
+      // 持续滚动动画
+      const iv = setInterval(() => {
+        dn.textContent = Math.floor(Math.random() * 6) + 1
+      }, 90)
+
+      // 点击数字按钮
+      ov.querySelectorAll('.dice-num-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const num = parseInt(btn.dataset.num)
+          clearInterval(iv)
+          dn.textContent = num
+          dn.classList.remove('dice-rolling')
+          dn.classList.add('settled')
+          // 隐藏输入区域
+          const inputArea = ov.querySelector('.dice-input-area')
+          if (inputArea) inputArea.style.display = 'none'
+          setTimeout(() => { ov.remove(); resolve(num) }, 900)
+        })
+      })
+
+      // 也支持键盘输入 1-6
+      const keyHandler = (e) => {
+        const num = parseInt(e.key)
+        if (num >= 1 && num <= 6) {
+          document.removeEventListener('keydown', keyHandler)
+          clearInterval(iv)
+          dn.textContent = num
+          dn.classList.remove('dice-rolling')
+          dn.classList.add('settled')
+          const inputArea = ov.querySelector('.dice-input-area')
+          if (inputArea) inputArea.style.display = 'none'
+          setTimeout(() => { ov.remove(); resolve(num) }, 900)
+        }
+      }
+      document.addEventListener('keydown', keyHandler)
     })
   }
 
@@ -571,7 +636,7 @@ export function startGame(container, navigate, totalRounds) {
     return { items: shuffled, selectedIndex: si }
   }
 
-  // ===== 小游戏结果 + 排名 =====
+  // ===== 小游戏结果 + 选择胜者 =====
   function showMiniGameResult(game) {
     return new Promise(resolve => {
       const ov = document.createElement('div'); ov.className = 'minigame-overlay'
@@ -580,7 +645,7 @@ export function startGame(container, navigate, totalRounds) {
           <div class="mg-icon"><img src="${game.icon}"/></div>
           <div class="mg-name">${game.name}</div>
           <div class="mg-condition">🏆 胜利条件: <span>${game.winCondition}</span></div>
-          <div style="color:rgba(255,255,255,0.4);margin-bottom:15px">请按顺序点击玩家排名（第1名→第2名→...）</div>
+          <div style="color:rgba(255,255,255,0.4);margin-bottom:15px">👆 点击选择胜利者（胜者 +5💰，其余 +2💰）</div>
           <div class="player-rank-area" id="rank-area">
             ${players.map((p, i) => `
               <div class="rank-player" data-idx="${i}">
@@ -589,37 +654,40 @@ export function startGame(container, navigate, totalRounds) {
                 <div class="rank-badge" id="badge-${i}"></div>
               </div>`).join('')}
           </div>
-          <div class="rank-instruction" id="rank-inst">👆 点击第 1 名</div>
+          <div class="rank-instruction" id="rank-inst">👆 点击胜利者</div>
         </div>`
       document.body.appendChild(ov)
       resolveAllImages(ov)
 
-      const rankings = [] // [{playerIdx, rank}]
-      const coins = [5, 3, 1] // 前三名奖励
-
       ov.querySelectorAll('.rank-player').forEach(el => {
         el.addEventListener('click', () => {
-          const idx = parseInt(el.dataset.idx)
-          if (el.classList.contains('ranked')) return
-          const rank = rankings.length + 1
-          rankings.push({ playerIdx: idx, rank })
-          el.classList.add('ranked')
-          const badge = ov.querySelector(`#badge-${idx}`)
-          badge.textContent = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] + ` +${coins[rank - 1] || 0}💰` : `第${rank}名`
-          badge.style.color = rank <= 3 ? '#ffd700' : '#aaa'
+          const winnerIdx = parseInt(el.dataset.idx)
+          // 胜者 +5 金币
+          players[winnerIdx].coins += 5
+          // 其余玩家 +2 金币
+          players.forEach((p, i) => {
+            if (i !== winnerIdx) p.coins += 2
+          })
 
-          // 奖励金币
-          if (rank <= 3) { players[idx].coins += coins[rank - 1] }
-
-          if (rankings.length >= players.length) {
-            ov.querySelector('#rank-inst').textContent = '排名完成！按空格键继续'
-            const handler = (e) => {
-              if (e.code === 'Space') { document.removeEventListener('keydown', handler); ov.remove(); resolve() }
+          // 更新显示
+          players.forEach((p, i) => {
+            const badge = ov.querySelector(`#badge-${i}`)
+            if (i === winnerIdx) {
+              badge.textContent = '🏆 胜利! +5💰'
+              badge.style.color = '#ffd700'
+              ov.querySelector(`.rank-player[data-idx="${i}"]`).classList.add('ranked', 'winner')
+            } else {
+              badge.textContent = '+2💰'
+              badge.style.color = '#aaa'
+              ov.querySelector(`.rank-player[data-idx="${i}"]`).classList.add('ranked')
             }
-            document.addEventListener('keydown', handler)
-          } else {
-            ov.querySelector('#rank-inst').textContent = `👆 点击第 ${rankings.length + 1} 名`
+          })
+
+          ov.querySelector('#rank-inst').textContent = '选择完成！按空格键继续'
+          const handler = (e) => {
+            if (e.code === 'Space') { document.removeEventListener('keydown', handler); ov.remove(); resolve() }
           }
+          document.addEventListener('keydown', handler)
         })
       })
     })
