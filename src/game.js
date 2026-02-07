@@ -121,14 +121,13 @@ function getTilePositions(sx, sy) {
 
 // === 棋盘格子类型 ===
 const EVENT_TILES = [2, 5, 9, 14, 17, 21]
-const NPC_TILES = [4, 8, 11, 16, 20, 23]
 const SYSTEM_TILES = [3, 10, 15, 22]  // 系统事件格子（每边各一个）
 const COIN_TILES = [1, 7, 12, 19]    // 金币格子（每边各一个）
 
-function getTileType(i) {
+function getTileType(i, npcTiles) {
   if (i === 0) return 'start'
   if (EVENT_TILES.includes(i)) return 'event'
-  if (NPC_TILES.includes(i)) return 'npc'
+  if (npcTiles.includes(i)) return 'npc'
   if (SYSTEM_TILES.includes(i)) return 'system'
   if (COIN_TILES.includes(i)) return 'coin'
   return 'normal'
@@ -148,6 +147,32 @@ function getTileSide(i) {
 export function startGame(container, navigate, totalRounds, diceMode = 'auto', savedState = null) {
   const characters = store.getCharacters()
   if (characters.length === 0) { alert('请先添加至少一个角色！'); navigate('menu'); return }
+
+  const npcs = store.getNpcs()
+  
+  // 动态计算 NPC 格子：
+  // 1. 找出所有已经被占用的格子（起点、事件、系统、金币）
+  const occupiedTiles = new Set([0, ...EVENT_TILES, ...SYSTEM_TILES, ...COIN_TILES])
+  // 2. 找出所有空闲格子
+  const freeTiles = []
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    if (!occupiedTiles.has(i)) freeTiles.push(i)
+  }
+  
+  // 3. 将 NPC 分配到空闲格子上
+  // 如果 NPC 数量多于空闲格子，则只放前面的 NPC
+  // 如果 NPC 数量少于空闲格子，则只占用部分空闲格子
+  const npcTiles = []
+  const npcMap = new Map() // tileIndex -> npc
+  
+  // 简单打乱空闲格子顺序，让 NPC 分布更随机（可选，这里先顺序填充）
+  // freeTiles.sort(() => Math.random() - 0.5)
+
+  for (let i = 0; i < Math.min(npcs.length, freeTiles.length); i++) {
+    const tileIdx = freeTiles[i]
+    npcTiles.push(tileIdx)
+    npcMap.set(tileIdx, npcs[i])
+  }
 
   // 如果不是恢复存档，则重置小游戏次数
   if (!savedState) {
@@ -300,7 +325,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   }
 
   tilePos.forEach((pos, i) => {
-    const type = getTileType(i)
+    const type = getTileType(i, npcTiles)
     const c = tileColors[type] || tileColors.normal
 
     // ① 最外层：柔和大范围光晕
@@ -403,11 +428,11 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
 
   // ===== NPC头像覆盖层（根据格子位置突出到对应方向） =====
   const avatarOverlay = document.getElementById('avatar-overlay')
-  const npcs = store.getNpcs()
   const NPC_AVATAR_SIZE = 48
-  NPC_TILES.forEach((tileIdx, i) => {
-    if (npcs.length === 0) return
-    const npc = npcs[i % npcs.length]
+  npcTiles.forEach((tileIdx) => {
+    const npc = npcMap.get(tileIdx)
+    if (!npc) return
+    
     const pos = tilePos[tileIdx]
     const side = getTileSide(tileIdx)
     const el = document.createElement('div')
@@ -1387,7 +1412,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   // ===== 处理落地格子 =====
   async function handleTileLanding(pi) {
     const p = players[pi]
-    const type = getTileType(p.position)
+    const type = getTileType(p.position, npcTiles)
     if (type === 'event' && events.length > 0) {
       // 随机事件格子 → 仅从用户自定义事件中抽取
       setHint('随机事件触发！')
@@ -1425,30 +1450,37 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
       }
     } else if (type === 'npc' && npcEvents.length > 0) {
       const npcs = store.getNpcs()
-      const randomNpc = npcs.length > 0 ? npcs[Math.floor(Math.random() * npcs.length)] : null
-      const title = randomNpc ? `👥 与${randomNpc.name}互动中...` : '👥 NPC事件抽取中...'
+      
+      // 修复：确保交互的NPC与地图上显示的NPC一致
+      let targetNpc = npcMap.get(p.position)
+      if (!targetNpc && npcs.length > 0) {
+          // 兜底逻辑
+          targetNpc = npcs[Math.floor(Math.random() * npcs.length)]
+      }
+
+      const title = targetNpc ? `👥 与${targetNpc.name}互动中...` : '👥 NPC事件抽取中...'
       setHint('NPC事件触发！')
       playNpcEncounter()  // 🔊 NPC遭遇音效
-      const ev = await showRoller(title, npcEvents, 6, randomNpc)
+      const ev = await showRoller(title, npcEvents, 6, targetNpc)
       if (ev) {
-        p.eventLog.push({ category: 'npc', name: ev.name, type: ev.type, icon: ev.icon, npcName: randomNpc ? randomNpc.name : '' })
+        p.eventLog.push({ category: 'npc', name: ev.name, type: ev.type, icon: ev.icon, npcName: targetNpc ? targetNpc.name : '' })
         await showEventResult(ev)
 
         // NPC系统事件：再摇一次
-        if (ev.type === 'npc_system' && (ev.name.includes('再摇一次') || ev.description.includes('再摇一次')) && randomNpc) {
-          setHint(`${randomNpc.name} 正在帮你再摇一次骰子...`)
+        if (ev.type === 'npc_system' && (ev.name.includes('再摇一次') || ev.description.includes('再摇一次')) && targetNpc) {
+          setHint(`${targetNpc.name} 正在帮你再摇一次骰子...`)
           await sleep(500)
 
           // 构造一个临时的NPC玩家对象用于显示
           const npcPlayer = {
              ...p,
-             name: randomNpc.name,
-             avatar: randomNpc.avatar,
-             color: randomNpc.color || p.color
+             name: targetNpc.name,
+             avatar: targetNpc.avatar,
+             color: targetNpc.color || p.color
           }
 
           const dice = await rollDice(npcPlayer)
-          setHint(`${randomNpc.name} 摇到了 ${dice}！${p.name} 移动中...`)
+          setHint(`${targetNpc.name} 摇到了 ${dice}！${p.name} 移动中...`)
           await sleep(300)
           await movePlayer(pi, dice)
           // 递归处理落地事件
