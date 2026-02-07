@@ -48,10 +48,12 @@ const DEFAULT_EVENTS = [
   { id: genId(), name: '扫地两次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地一次' },
   { id: genId(), name: '洗碗三次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗一次' },
   { id: genId(), name: '扫地三次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地一次' },
+  { id: genId(), name: '喝一次歌', icon: EVENT_ICONS.sing, type: 'punishment', description: '为大家唱一首歌' },
 ]
 
 const DEFAULT_NPC_EVENTS = [
   { id: genId(), name: '捶背', icon: NPC_EVENT_ICONS.chuibei, type: 'reward', description: '帮长辈捶背' },
+  { id: genId(), name: '一起跳舞', icon: NPC_EVENT_ICONS.dance, type: 'reward', description: '和NPC一起跳舞' },
   { id: genId(), name: '讨红包', icon: NPC_EVENT_ICONS.taohongbao, type: 'reward', description: '向NPC讨红包' },
   { id: genId(), name: '给红包', icon: NPC_EVENT_ICONS.geihongbao, type: 'punishment', description: '给NPC发红包' },
   { id: genId(), name: '小游戏代玩', icon: NPC_EVENT_ICONS.daiwan, type: 'reward', description: '请求下一次小游戏由NPC代玩' },
@@ -131,10 +133,40 @@ class Store {
         }
       })
 
+      // 添加新的惩罚事件（如果不存在）
+      const newPunishments = DEFAULT_EVENTS.filter(def => ['喝一次歌'].includes(def.name))
+      newPunishments.forEach(def => {
+        if (!current.find(e => e.name === def.name)) {
+          current.push(def)
+          changed = true
+        }
+      })
+
       if (changed) this.saveEvents(current)
     }
     if (!localStorage.getItem('rr_npcevents')) {
       this.saveNpcEvents(DEFAULT_NPC_EVENTS)
+    } else {
+      // 检查 NPC 事件更新
+      let current = this.getNpcEvents()
+      let changed = false
+      
+      // 更新现有事件的图标或添加新事件
+      DEFAULT_NPC_EVENTS.forEach(def => {
+        const existing = current.find(e => e.name === def.name)
+        if (existing) {
+          if (existing.icon !== def.icon) {
+             existing.icon = def.icon
+             changed = true
+          }
+        } else {
+             // 添加新事件（例如：一起跳舞）
+             current.push(def)
+             changed = true
+        }
+      })
+
+      if (changed) this.saveNpcEvents(current)
     }
     if (!localStorage.getItem('rr_finalprize')) {
       this.saveFinalPrize(DEFAULT_FINAL_PRIZE)

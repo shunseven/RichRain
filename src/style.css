@@ -98,12 +98,36 @@ body {
 }
 
 .menu-subtitle {
-  font-size: 1.2em;
-  color: #ffd700;
+  font-size: 1.5em;
+  color: #ffda79;
   margin-bottom: 40px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
   position: relative;
   z-index: 1;
+  letter-spacing: 2px;
 }
+
+.clear-cache-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.3s;
+}
+
+.clear-cache-btn:hover {
+  background: rgba(255, 71, 87, 0.2);
+  color: #ff4757;
+  border-color: #ff4757;
+}
+
 
 @keyframes gradient {
   0% { background-position: 0% 50%; }

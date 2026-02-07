@@ -37,6 +37,7 @@ function showMenu() {
 
   app.innerHTML = `
     <div class="menu-screen">
+      <button class="clear-cache-btn" id="btn-clear-cache">清除缓存</button>
       <div class="menu-super-title">🧧 红包雨3.0 🧧</div>
       <div class="menu-title">🎉 新春派对大富翁 🎉</div>
       <div class="menu-subtitle">🧧 恭喜发财 · 万事如意 🧧</div>
@@ -95,6 +96,18 @@ function showMenu() {
       }
     })
   })
+
+  const clearBtn = document.getElementById('btn-clear-cache')
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (confirm('确定要清除所有本地数据吗？')) {
+        if (confirm('再次确认：此操作不可恢复，所有自定义设置和游戏进度都将丢失！')) {
+          store.resetAll()
+          location.reload()
+        }
+      }
+    })
+  }
 }
 
 // ===== 轮数设置 =====
