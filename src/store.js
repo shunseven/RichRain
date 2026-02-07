@@ -55,16 +55,11 @@ const DEFAULT_NPC_EVENTS = [
   { id: genId(), name: '捶背', icon: NPC_EVENT_ICONS.chuibei, type: 'reward', description: '帮长辈捶背' },
   { id: genId(), name: '讨红包', icon: NPC_EVENT_ICONS.taohongbao, type: 'reward', description: '向NPC讨红包' },
   { id: genId(), name: '给红包', icon: NPC_EVENT_ICONS.geihongbao, type: 'punishment', description: '给NPC发红包' },
-  { id: genId(), name: '陪聊天', icon: NPC_EVENT_ICONS.peiliaotian, type: 'reward', description: '陪NPC聊天，心情愉快' },
-  { id: genId(), name: '端茶', icon: NPC_EVENT_ICONS.duancha, type: 'reward', description: '给长辈端茶' },
-  { id: genId(), name: '一起包饺子', icon: NPC_EVENT_ICONS.yiqibaojiaozi, type: 'reward', description: '和NPC一起包饺子' },
-  { id: genId(), name: '讲故事', icon: NPC_EVENT_ICONS.jianggushi, type: 'reward', description: '听NPC讲有趣的故事' },
-  { id: genId(), name: '下象棋', icon: NPC_EVENT_ICONS.xiaxiangqi, type: 'reward', description: '和NPC下象棋' },
-  { id: genId(), name: '唱歌', icon: NPC_EVENT_ICONS.changge, type: 'reward', description: '和NPC一起唱歌' },
-  { id: genId(), name: '跳舞', icon: NPC_EVENT_ICONS.tiaowu, type: 'reward', description: '和NPC一起跳舞' },
-  { id: genId(), name: '猜灯谜', icon: NPC_EVENT_ICONS.caidengmi, type: 'reward', description: '猜对灯谜' },
-  { id: genId(), name: '写书法', icon: NPC_EVENT_ICONS.xieshufa, type: 'reward', description: '和NPC一起写书法' },
-  { id: genId(), name: '一起看春晚', icon: NPC_EVENT_ICONS.yiqikanchunwan, type: 'reward', description: '和NPC一起看春晚' },
+  { id: genId(), name: '扫一次地', icon: NPC_EVENT_ICONS.saodi, type: 'punishment', description: '需要扫一次地' },
+  { id: genId(), name: '洗一次碗', icon: NPC_EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗一次碗' },
+  { id: genId(), name: '小游戏代玩', icon: NPC_EVENT_ICONS.daiwan, type: 'reward', description: '请求下一次小游戏由NPC代玩' },
+  { id: genId(), name: '送寒假练习题', icon: NPC_EVENT_ICONS.lianxiti, type: 'reward', description: '送一本寒假练习题' },
+  { id: genId(), name: '要指定零食', icon: NPC_EVENT_ICONS.yaolingshi, type: 'reward', description: '向NPC要一个指定的零食' },
 ]
 
 const DEFAULT_FINAL_PRIZE = {
