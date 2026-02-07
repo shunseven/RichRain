@@ -83,6 +83,7 @@ const SYSTEM_EVENTS = [
   { id: 'sys_swap_player', name: '🔄 和随机角色换位置', emoji: '🔄', icon: _sysIcon('🔄'), description: '与一位随机角色互换位置！', color: '#6c5ce7' },
   { id: 'sys_near_star', name: '🌠 走到星星前两格', emoji: '🌠', icon: _sysIcon('🌠'), description: '瞬移到星星前两格！', color: '#fdcb6e' },
   { id: 'sys_random_pos', name: '🎲 跳到随机位置', emoji: '🎲', icon: _sysIcon('🎲'), description: '随机传送到棋盘任意位置！', color: '#00cec9' },
+  { id: 'sys_steal_coins', name: '🕵️ 抽取金币', emoji: '🕵️', icon: _sysIcon('🕵️'), description: '从随机角色身上抽取金币！', color: '#e67e22' },
 ]
 
 // === 金币事件池（-3 到 8） ===
@@ -93,6 +94,17 @@ for (let i = -3; i <= 8; i++) {
     id: `coin_${i}`,
     name: isGain ? `💰 获得 ${i} 金币` : `💸 失去 ${Math.abs(i)} 金币`,
     icon: _sysIcon(isGain ? '💰' : '💸'),
+    amount: i,
+  })
+}
+
+// === 偷取金币事件池（1 到 8） ===
+const STEAL_COIN_EVENTS = []
+for (let i = 1; i <= 8; i++) {
+  STEAL_COIN_EVENTS.push({
+    id: `steal_coin_${i}`,
+    name: `💰 抽取 ${i} 金币`,
+    icon: _sysIcon('💰'),
     amount: i,
   })
 }
@@ -1338,6 +1350,35 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         await showSystemEventResult(sysEvent, `${p.name} 被传送到了第 ${randomPos} 格！`)
         playTeleport()  // 🔊 传送音效
         await teleportPlayer(pi, randomPos)
+        break
+      }
+      case 'sys_steal_coins': {
+        const others = players.filter((_, i) => i !== pi)
+        if (others.length === 0) {
+          await showSystemEventResult(sysEvent, '没有其他角色可以抽取！')
+          break
+        }
+        const target = others[Math.floor(Math.random() * others.length)]
+        await showSystemEventResult(sysEvent, `准备从 ${target.name} 身上抽取金币！`)
+        
+        const ev = await showRoller(`从 ${target.name} 抽取金币...`, STEAL_COIN_EVENTS, 6, target)
+        
+        if (ev) {
+          const amount = ev.amount
+          // 确保不超过对方拥有的金币
+          const stolen = Math.min(target.coins, amount)
+          
+          target.coins -= stolen
+          p.coins += stolen
+          
+          updateInfoPanel(); updatePlayersPanel()
+          playCoinGain()
+          
+          await showSystemEventResult({
+            ...sysEvent,
+            description: `成功从 ${target.name} 那里抽取了 ${stolen} 金币！`
+          })
+        }
         break
       }
     }
