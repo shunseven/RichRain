@@ -144,10 +144,8 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
   // 游戏状态
   const players = characters.map(c => ({ ...c, coins: 5, stars: 0, position: 0 }))
   let currentRound = 1, currentPI = 0, phase = 'waiting_dice'
-  // 星星初始位置 - 随机放在普通格子上
-  const normalTiles = []
-  for (let i = 0; i < BOARD_SIZE; i++) { if (getTileType(i) === 'normal') normalTiles.push(i) }
-  let starPos = normalTiles[Math.floor(Math.random() * normalTiles.length)]
+  // 星星初始位置 - 随机放在任意格子上
+  let starPos = Math.floor(Math.random() * BOARD_SIZE)
 
   // ===== DOM 结构 =====
   container.innerHTML = `
@@ -551,10 +549,11 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto') {
   }
 
   function moveStar() {
-    const normals = []
-    for (let i = 0; i < BOARD_SIZE; i++) { if (getTileType(i) === 'normal' && i !== starPos) normals.push(i) }
-    if (normals.length === 0) return
-    starPos = normals[Math.floor(Math.random() * normals.length)]
+    // 星星可以移动到任意格子（排除当前位置）
+    const candidates = []
+    for (let i = 0; i < BOARD_SIZE; i++) { if (i !== starPos) candidates.push(i) }
+    if (candidates.length === 0) return
+    starPos = candidates[Math.floor(Math.random() * candidates.length)]
     moveStarElements(tilePos[starPos])
   }
 
