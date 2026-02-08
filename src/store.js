@@ -57,10 +57,11 @@ const DEFAULT_NPC_EVENTS = [
   { id: genId(), name: '捶背', icon: NPC_EVENT_ICONS.chuibei, type: 'reward', description: '帮长辈捶背' },
   { id: genId(), name: '一起跳舞', icon: NPC_EVENT_ICONS.dance, type: 'reward', description: '和NPC一起跳舞' },
   { id: genId(), name: '讨红包', icon: NPC_EVENT_ICONS.taohongbao, type: 'reward', description: '向NPC讨红包' },
-  { id: genId(), name: '给红包', icon: NPC_EVENT_ICONS.geihongbao, type: 'punishment', description: '给NPC发红包' },
+  { id: genId(), name: '给NPC红包', icon: NPC_EVENT_ICONS.geihongbao, type: 'punishment', description: '给NPC发红包' },
   { id: genId(), name: '小游戏代玩', icon: NPC_EVENT_ICONS.daiwan, type: 'reward', description: '请求下一次小游戏由NPC代玩' },
   { id: genId(), name: '送寒假练习题', icon: NPC_EVENT_ICONS.lianxiti, type: 'reward', description: '送一本寒假练习题' },
   { id: genId(), name: '要指定零食', icon: NPC_EVENT_ICONS.yaolingshi, type: 'reward', description: '向NPC要一个指定的零食' },
+  { id: genId(), name: '请求加码最终大奖', icon: NPC_EVENT_ICONS.jiamadajiang, type: 'reward', description: '请求NPC为最终赢家加红包、玩具或零食' },
   { id: genId(), name: '帮忙再摇一次', icon: SYSTEM_ICONS.dice, type: 'npc_system', description: 'NPC帮你再摇一次骰子' },
 ]
 
