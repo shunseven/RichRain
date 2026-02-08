@@ -733,7 +733,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
           </div>
           <div style="color:rgba(255,215,0,0.9);font-size:1.1em;margin:10px 0;line-height:2">
             ⭐ 场上将出现两颗星星<br/>
-            🎵 背景音乐加速！
+            🎵 决战BGM启动！
           </div>
           <div class="continue-hint" style="margin-top:25px;opacity:0.6">5秒后自动关闭...</div>
         </div>`

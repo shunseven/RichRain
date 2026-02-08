@@ -787,11 +787,268 @@ export function stopBGM() {
   }
 }
 
-// 加速BGM（最后三轮使用）
+// =============================================
+// 🔥 决战BGM - 最后三轮紧张对决风格（中国风小调）
+// 设计思路：用更少的音频节点 + 更长的持续音，彻底避免卡顿
+// =============================================
+function startFinalBGM() {
+  if (bgmPlaying) return
+  bgmPlaying = true
+
+  const ctx = getCtx()
+  const BPM = 138
+  const beat = 60 / BPM
+  const eighth = beat / 2
+
+  // 确保鼓组Buffer已缓存
+  if (!drumBufs) {
+    const kickLen = Math.floor(ctx.sampleRate * 0.02)
+    const kickBuf = ctx.createBuffer(1, kickLen, ctx.sampleRate)
+    const kd = kickBuf.getChannelData(0)
+    for (let i = 0; i < kickLen; i++) kd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (kickLen * 0.15))
+    const snareLen = Math.floor(ctx.sampleRate * 0.1)
+    const snareBuf = ctx.createBuffer(1, snareLen, ctx.sampleRate)
+    const sd = snareBuf.getChannelData(0)
+    for (let i = 0; i < snareLen; i++) sd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (snareLen * 0.2))
+    const chLen = Math.floor(ctx.sampleRate * 0.03)
+    const chBuf = ctx.createBuffer(1, chLen, ctx.sampleRate)
+    const cd = chBuf.getChannelData(0)
+    for (let i = 0; i < chLen; i++) cd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (chLen * 0.2))
+    const ohLen = Math.floor(ctx.sampleRate * 0.12)
+    const ohBuf = ctx.createBuffer(1, ohLen, ctx.sampleRate)
+    const od = ohBuf.getChannelData(0)
+    for (let i = 0; i < ohLen; i++) od[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ohLen * 0.4))
+    drumBufs = { kickBuf, snareBuf, chBuf, ohBuf }
+  }
+
+  // ===== A小调五声音阶 - 中国风决战 =====
+  // 和弦进行: Am → Dm → Em → Am → Am → F → G → Am（8小节循环）
+  const CHORDS = [
+    [220, 261.6, 329.6],   // Am
+    [293.7, 349.2, 440],   // Dm
+    [329.6, 392, 493.9],   // Em
+    [220, 261.6, 329.6],   // Am
+    [220, 261.6, 329.6],   // Am
+    [349.2, 440, 523.3],   // F
+    [392, 493.9, 587.3],   // G
+    [220, 261.6, 329.6],   // Am
+  ]
+
+  // 低音根音
+  const BASS = [110, 146.8, 164.8, 110, 110, 174.6, 196, 110]
+
+  // ===== 旋律 - 中国风戏曲/武侠决战感 =====
+  // A小调五声: A(440/880) C(523/1047) D(587) E(659) G(784)
+  // 8分音符 x 8 = 1小节, 0=休止
+  const MELODY = [
+    [659, 659, 587, 523, 587, 659, 784, 0],     // 气势开场
+    [880, 0, 784, 659, 587, 0, 659, 0],          // 高音回应
+    [523, 587, 659, 784, 880, 0, 784, 659],      // 英雄上行
+    [587, 0, 659, 0, 0, 0, 0, 0],                // 蓄力停顿
+    [880, 0, 880, 784, 659, 784, 880, 0],        // 再起冲锋
+    [1047, 0, 880, 784, 880, 0, 784, 0],         // 高潮！最高音
+    [659, 784, 880, 784, 659, 587, 659, 0],      // 穿梭下行
+    [587, 523, 587, 659, 0, 0, 0, 0],            // 收束呼吸
+  ]
+
+  // ===== 战鼓节奏 =====
+  // K=底鼓 S=军鼓 H=踩镲 T=重音鼓 .=休止
+  const DRUMS = [
+    'K.HSK.HS',  // 基本战鼓
+    'K.HSKK.H',  // 双踢变化
+    'KKH.S.HS',  // 密集开头
+    'K.HSKSHT',  // 加花收尾
+  ]
+
+  let barCount = 0
+
+  // --- 单音节点（高效版，带自动清理）---
+  function fNote(f, dur, type, vol, startTime) {
+    if (f <= 0) return
+    const o = ctx.createOscillator()
+    const g = ctx.createGain()
+    const flt = ctx.createBiquadFilter()
+    o.type = type
+    o.frequency.value = f
+    flt.type = 'lowpass'
+    flt.frequency.value = f * 3
+    flt.Q.value = 1
+    g.gain.setValueAtTime(0, startTime)
+    g.gain.linearRampToValueAtTime(vol, startTime + 0.01)
+    g.gain.setValueAtTime(vol * 0.7, startTime + dur * 0.4)
+    g.gain.exponentialRampToValueAtTime(0.001, startTime + dur)
+    o.connect(flt); flt.connect(g); g.connect(bgmGain)
+    o.start(startTime); o.stop(startTime + dur + 0.02)
+    o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
+    bgmNodes.push(o)
+  }
+
+  function scheduleBar() {
+    if (!bgmPlaying) return
+
+    // 每2小节清理旧节点引用
+    if (barCount > 0 && barCount % 2 === 0) {
+      const iid = bgmNodes._intervalId
+      bgmNodes = []
+      bgmNodes._intervalId = iid
+    }
+
+    const now = ctx.currentTime + 0.05
+    const ci = barCount % CHORDS.length
+    const chord = CHORDS[ci]
+    const bassF = BASS[ci]
+    const melody = MELODY[barCount % MELODY.length]
+    const drumPat = DRUMS[barCount % DRUMS.length]
+
+    // ===== 1) 暗色弦乐Pad（持续整小节，仅3个振荡器！）=====
+    chord.forEach(f => {
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      const flt = ctx.createBiquadFilter()
+      o.type = 'sawtooth'
+      o.frequency.value = f
+      flt.type = 'lowpass'
+      flt.frequency.value = f * 2
+      flt.Q.value = 0.5
+      // 缓慢起音 → 持续 → 淡出 = 弦乐质感
+      g.gain.setValueAtTime(0, now)
+      g.gain.linearRampToValueAtTime(0.045, now + beat * 0.5)
+      g.gain.setValueAtTime(0.04, now + beat * 3)
+      g.gain.exponentialRampToValueAtTime(0.001, now + beat * 4 + 0.05)
+      o.connect(flt); flt.connect(g); g.connect(bgmGain)
+      o.start(now); o.stop(now + beat * 4 + 0.1)
+      o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
+      bgmNodes.push(o)
+    })
+
+    // ===== 2) 沉重低音（每小节2次重击）=====
+    for (let b = 0; b < 2; b++) {
+      const t = now + b * beat * 2
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      const flt = ctx.createBiquadFilter()
+      o.type = 'sawtooth'
+      o.frequency.value = bassF
+      flt.type = 'lowpass'
+      flt.frequency.value = 200
+      flt.Q.value = 4
+      g.gain.setValueAtTime(0, t)
+      g.gain.linearRampToValueAtTime(0.15, t + 0.01)
+      g.gain.setValueAtTime(0.1, t + beat * 0.5)
+      g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.8)
+      o.connect(flt); flt.connect(g); g.connect(bgmGain)
+      o.start(t); o.stop(t + beat * 2)
+      o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
+      bgmNodes.push(o)
+    }
+
+    // ===== 3) 决战旋律（二胡/笛子感 - square波 + 滤波）=====
+    for (let i = 0; i < 8; i++) {
+      const t = now + i * eighth
+      const f = melody[i]
+      if (f > 0) {
+        // 主旋律
+        fNote(f, eighth * 1.5, 'square', 0.08, t)
+        // 柔和衬底（低八度 sine）
+        fNote(f * 0.5, eighth * 1.2, 'sine', 0.025, t)
+      }
+    }
+
+    // ===== 4) 战鼓（使用缓存Buffer，高效！）=====
+    for (let i = 0; i < 8; i++) {
+      const t = now + i * eighth
+      const d = drumPat[i]
+      if (d === 'K' || d === 'T') {
+        // 底鼓 / 重音鼓
+        const kick = ctx.createOscillator()
+        const kGain = ctx.createGain()
+        kick.type = 'sine'
+        kick.frequency.setValueAtTime(d === 'T' ? 120 : 180, t)
+        kick.frequency.exponentialRampToValueAtTime(35, t + 0.15)
+        kGain.gain.setValueAtTime(d === 'T' ? 0.35 : 0.3, t)
+        kGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2)
+        kick.connect(kGain); kGain.connect(bgmGain)
+        kick.start(t); kick.stop(t + 0.22)
+        kick.onended = () => { kick.disconnect(); kGain.disconnect() }
+        bgmNodes.push(kick)
+      } else if (d === 'S') {
+        // 军鼓
+        const src = ctx.createBufferSource()
+        src.buffer = drumBufs.snareBuf
+        const sg = ctx.createGain()
+        const sf = ctx.createBiquadFilter()
+        sf.type = 'bandpass'; sf.frequency.value = 1500; sf.Q.value = 0.8
+        sg.gain.setValueAtTime(0.22, t)
+        sg.gain.exponentialRampToValueAtTime(0.001, t + 0.12)
+        src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
+        src.start(t); src.stop(t + 0.14)
+        src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
+        bgmNodes.push(src)
+      } else if (d === 'H') {
+        // 踩镲
+        const src = ctx.createBufferSource()
+        src.buffer = drumBufs.chBuf
+        const sg = ctx.createGain()
+        const sf = ctx.createBiquadFilter()
+        sf.type = 'highpass'; sf.frequency.value = 8000; sf.Q.value = 0.5
+        sg.gain.setValueAtTime(0.06, t)
+        sg.gain.exponentialRampToValueAtTime(0.001, t + 0.03)
+        src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
+        src.start(t); src.stop(t + 0.05)
+        src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
+        bgmNodes.push(src)
+      }
+    }
+
+    // ===== 5) 紧张上升音效（每4小节第4小节加入）=====
+    if (barCount % 4 === 3) {
+      const riser = ctx.createOscillator()
+      const rGain = ctx.createGain()
+      riser.type = 'sawtooth'
+      riser.frequency.setValueAtTime(200, now + beat * 2)
+      riser.frequency.exponentialRampToValueAtTime(800, now + beat * 4)
+      rGain.gain.setValueAtTime(0, now + beat * 2)
+      rGain.gain.linearRampToValueAtTime(0.03, now + beat * 3)
+      rGain.gain.exponentialRampToValueAtTime(0.001, now + beat * 4 + 0.05)
+      riser.connect(rGain); rGain.connect(bgmGain)
+      riser.start(now + beat * 2); riser.stop(now + beat * 4 + 0.1)
+      riser.onended = () => { riser.disconnect(); rGain.disconnect() }
+      bgmNodes.push(riser)
+    }
+
+    // ===== 6) 心跳低频脉冲（增加紧迫感）=====
+    if (barCount % 2 === 0) {
+      for (let p = 0; p < 4; p++) {
+        const t = now + p * beat
+        const hb = ctx.createOscillator()
+        const hbG = ctx.createGain()
+        hb.type = 'sine'
+        hb.frequency.value = 45
+        hbG.gain.setValueAtTime(0, t)
+        hbG.gain.linearRampToValueAtTime(0.06, t + 0.02)
+        hbG.gain.exponentialRampToValueAtTime(0.001, t + 0.15)
+        hb.connect(hbG); hbG.connect(bgmGain)
+        hb.start(t); hb.stop(t + 0.18)
+        hb.onended = () => { hb.disconnect(); hbG.disconnect() }
+        bgmNodes.push(hb)
+      }
+    }
+
+    barCount++
+  }
+
+  // 每小节调度一次（4拍）
+  const barMs = beat * 4 * 1000
+  scheduleBar()
+  const intervalId = setInterval(scheduleBar, barMs)
+  bgmNodes._intervalId = intervalId
+}
+
+// 切换到决战BGM（最后三轮使用）
 export function speedUpBGM() {
   stopBGM()
   // 短暂延迟确保干净切换
-  setTimeout(() => startBGM(165), 100)
+  setTimeout(() => startFinalBGM(), 100)
 }
 
 // 音量控制
