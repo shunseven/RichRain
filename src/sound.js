@@ -6,6 +6,7 @@ let bgmGain = null
 let sfxGain = null
 let bgmPlaying = false
 let bgmNodes = []
+let drumBufs = null  // 缓存鼓组噪声Buffer，避免重复创建
 
 // 延迟初始化 AudioContext（需要用户交互后才能使用）
 function getCtx() {
@@ -515,6 +516,31 @@ export function startBGM(bpm) {
   let bassIdx = 0
   let stabIdx = 0
 
+  // --- 缓存鼓组噪声Buffer（只创建一次）---
+  if (!drumBufs) {
+    const kickLen = Math.floor(ctx.sampleRate * 0.02)
+    const kickBuf = ctx.createBuffer(1, kickLen, ctx.sampleRate)
+    const kd = kickBuf.getChannelData(0)
+    for (let i = 0; i < kickLen; i++) kd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (kickLen * 0.15))
+
+    const snareLen = Math.floor(ctx.sampleRate * 0.1)
+    const snareBuf = ctx.createBuffer(1, snareLen, ctx.sampleRate)
+    const sd = snareBuf.getChannelData(0)
+    for (let i = 0; i < snareLen; i++) sd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (snareLen * 0.2))
+
+    const chLen = Math.floor(ctx.sampleRate * 0.03)
+    const chBuf = ctx.createBuffer(1, chLen, ctx.sampleRate)
+    const cd = chBuf.getChannelData(0)
+    for (let i = 0; i < chLen; i++) cd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (chLen * 0.2))
+
+    const ohLen = Math.floor(ctx.sampleRate * 0.12)
+    const ohBuf = ctx.createBuffer(1, ohLen, ctx.sampleRate)
+    const od = ohBuf.getChannelData(0)
+    for (let i = 0; i < ohLen; i++) od[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ohLen * 0.4))
+
+    drumBufs = { kickBuf, snareBuf, chBuf, ohBuf }
+  }
+
   // --- 播放合成音（带变调）---
   function note(f, dur, type, vol, startTime) {
     if (f <= 0) return
@@ -530,6 +556,7 @@ export function startBGM(bpm) {
     g.connect(bgmGain)
     o.start(startTime)
     o.stop(startTime + dur + 0.02)
+    o.onended = () => { o.disconnect(); g.disconnect() }
     bgmNodes.push(o)
   }
 
@@ -554,11 +581,12 @@ export function startBGM(bpm) {
       g.connect(bgmGain)
       o.start(startTime)
       o.stop(startTime + 0.15)
+      o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
       bgmNodes.push(o)
     })
   }
 
-  // --- Pop 鼓组 ---
+  // --- Pop 鼓组（使用缓存Buffer）---
   function drum(type, startTime) {
     if (type === 'K') {
       // 底鼓 - 有力的 Kick
@@ -573,14 +601,11 @@ export function startBGM(bpm) {
       kGain.connect(bgmGain)
       kick.start(startTime)
       kick.stop(startTime + 0.18)
+      kick.onended = () => { kick.disconnect(); kGain.disconnect() }
       bgmNodes.push(kick)
-      // 底鼓 click 层
-      const bufLen = Math.floor(ctx.sampleRate * 0.02)
-      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
-      const d = buf.getChannelData(0)
-      for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.15))
+      // 底鼓 click 层（使用缓存Buffer）
       const src = ctx.createBufferSource()
-      src.buffer = buf
+      src.buffer = drumBufs.kickBuf
       const sg = ctx.createGain()
       const sf = ctx.createBiquadFilter()
       sf.type = 'highpass'; sf.frequency.value = 2000
@@ -588,15 +613,12 @@ export function startBGM(bpm) {
       sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.03)
       src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
       src.start(startTime); src.stop(startTime + 0.05)
+      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
       bgmNodes.push(src)
     } else if (type === 'S') {
-      // 军鼓 - Pop snare
-      const bufLen = Math.floor(ctx.sampleRate * 0.1)
-      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
-      const d = buf.getChannelData(0)
-      for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.2))
+      // 军鼓 - Pop snare（使用缓存Buffer）
       const src = ctx.createBufferSource()
-      src.buffer = buf
+      src.buffer = drumBufs.snareBuf
       const sg = ctx.createGain()
       const sf = ctx.createBiquadFilter()
       sf.type = 'bandpass'; sf.frequency.value = 1200; sf.Q.value = 0.8
@@ -604,6 +626,7 @@ export function startBGM(bpm) {
       sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1)
       src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
       src.start(startTime); src.stop(startTime + 0.12)
+      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
       bgmNodes.push(src)
       // snare body
       const so = ctx.createOscillator()
@@ -613,15 +636,12 @@ export function startBGM(bpm) {
       soG.gain.exponentialRampToValueAtTime(0.001, startTime + 0.06)
       so.connect(soG); soG.connect(bgmGain)
       so.start(startTime); so.stop(startTime + 0.08)
+      so.onended = () => { so.disconnect(); soG.disconnect() }
       bgmNodes.push(so)
     } else if (type === 'H') {
-      // 闭合踩镲
-      const bufLen = Math.floor(ctx.sampleRate * 0.03)
-      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
-      const d = buf.getChannelData(0)
-      for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.2))
+      // 闭合踩镲（使用缓存Buffer）
       const src = ctx.createBufferSource()
-      src.buffer = buf
+      src.buffer = drumBufs.chBuf
       const sg = ctx.createGain()
       const sf = ctx.createBiquadFilter()
       sf.type = 'highpass'; sf.frequency.value = 7000; sf.Q.value = 0.5
@@ -629,15 +649,12 @@ export function startBGM(bpm) {
       sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.03)
       src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
       src.start(startTime); src.stop(startTime + 0.05)
+      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
       bgmNodes.push(src)
     } else if (type === 'O') {
-      // 开放踩镲
-      const bufLen = Math.floor(ctx.sampleRate * 0.12)
-      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
-      const d = buf.getChannelData(0)
-      for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.4))
+      // 开放踩镲（使用缓存Buffer）
       const src = ctx.createBufferSource()
-      src.buffer = buf
+      src.buffer = drumBufs.ohBuf
       const sg = ctx.createGain()
       const sf = ctx.createBiquadFilter()
       sf.type = 'highpass'; sf.frequency.value = 5000; sf.Q.value = 0.3
@@ -645,6 +662,7 @@ export function startBGM(bpm) {
       sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.12)
       src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
       src.start(startTime); src.stop(startTime + 0.15)
+      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
       bgmNodes.push(src)
     }
   }
@@ -653,8 +671,8 @@ export function startBGM(bpm) {
   function scheduleBar() {
     if (!bgmPlaying) return
 
-    // 每4小节清理已停止的旧节点引用，防止数组无限增长导致卡顿
-    if (barCount > 0 && barCount % 4 === 0) {
+    // 每2小节清理已停止的旧节点引用，防止数组无限增长导致卡顿
+    if (barCount > 0 && barCount % 2 === 0) {
       const intervalId = bgmNodes._intervalId
       bgmNodes = []
       bgmNodes._intervalId = intervalId
@@ -686,6 +704,7 @@ export function startBGM(bpm) {
         g.gain.exponentialRampToValueAtTime(0.001, t + sixteenth * 1.6)
         o.connect(flt); flt.connect(g); g.connect(bgmGain)
         o.start(t); o.stop(t + sixteenth * 1.8)
+        o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
         bgmNodes.push(o)
         // 柔和衬底 sine
         note(f, sixteenth * 1.5, 'sine', 0.04, t)
@@ -718,6 +737,7 @@ export function startBGM(bpm) {
         g.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.7)
         o.connect(flt); flt.connect(g); g.connect(bgmGain)
         o.start(t); o.stop(t + beat * 0.8)
+        o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
         bgmNodes.push(o)
       }
 
@@ -753,9 +773,18 @@ export function stopBGM() {
   bgmPlaying = false
   if (bgmNodes._intervalId) clearInterval(bgmNodes._intervalId)
   bgmNodes.forEach(node => {
-    try { node.stop() } catch (e) { /* ignore */ }
+    try { node.stop(); node.disconnect() } catch (e) { /* ignore */ }
   })
   bgmNodes = []
+  // 重建 bgmGain 节点，彻底断开所有孤立的中间节点（GainNode/BiquadFilterNode）
+  // 这些节点在 bgmNodes 清理时可能未被引用但仍连接在音频图中
+  if (bgmGain && audioCtx) {
+    const vol = bgmGain.gain.value
+    bgmGain.disconnect()
+    bgmGain = audioCtx.createGain()
+    bgmGain.gain.value = vol
+    bgmGain.connect(audioCtx.destination)
+  }
 }
 
 // 加速BGM（最后三轮使用）
