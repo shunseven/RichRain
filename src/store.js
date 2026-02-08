@@ -51,6 +51,7 @@ const DEFAULT_EVENTS = [
   { id: genId(), name: '洗碗三次', icon: EVENT_ICONS.xiwan, type: 'punishment', description: '需要洗碗三次' },
   { id: genId(), name: '扫地三次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地三次' },
   { id: genId(), name: '唱一首歌', icon: EVENT_ICONS.sing, type: 'punishment', description: '为大家唱一首歌' },
+  { id: genId(), name: '选一个多肉零食', icon: EVENT_ICONS.duoroulingshi, type: 'reward', description: '从多肉零食中选一个自己喜欢的' },
 ]
 
 const DEFAULT_NPC_EVENTS = [
@@ -135,7 +136,7 @@ class Store {
       }
 
       // 添加新的零食事件（如果不存在）
-      const newSnacks = DEFAULT_EVENTS.filter(def => ['火鸡面', '辣条', '薯片', '抽零食'].includes(def.name))
+      const newSnacks = DEFAULT_EVENTS.filter(def => ['火鸡面', '辣条', '薯片', '抽零食', '选一个多肉零食'].includes(def.name))
       newSnacks.forEach(def => {
         if (!current.find(e => e.name === def.name)) {
           current.push(def)
