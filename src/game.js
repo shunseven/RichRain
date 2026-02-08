@@ -1353,6 +1353,27 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
       updateInfoPanel()
       playStep()  // 🔊 移动一步音效
       await sleep(350)
+      // 检查星星1
+      if (p.position === starPos && p.coins >= 10) {
+        p.coins -= 10; p.stars++
+        updateInfoPanel(); updatePlayersPanel()
+        await showStarPopup(p)
+        moveStar()
+      }
+      // 检查星星2（最后三轮激活）
+      if (star2Active && p.position === starPos2 && p.coins >= 10) {
+        p.coins -= 10; p.stars++
+        updateInfoPanel(); updatePlayersPanel()
+        await showStarPopup(p)
+        // 移动星星2到新位置
+        const candidates = []
+        for (let i = 0; i < BOARD_SIZE; i++) {
+          if (i !== starPos && i !== starPos2) candidates.push(i)
+        }
+        if (candidates.length > 0) {
+          showStar2(candidates[Math.floor(Math.random() * candidates.length)])
+        }
+      }
     }
   }
 
