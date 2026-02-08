@@ -380,390 +380,314 @@ export function playClick() {
 }
 
 // =============================================
-// 🎵 背景音乐 - 恭喜发财 Funky Pop 风格（带变调升Key）
+// 🎵 背景音乐 - 恭喜发财 欢乐Pop风格（高效版 + 变调升Key）
+// 架构：8分音符网格，长持续Pad，缓存Buffer，自动清理
 // =============================================
-export function startBGM(bpm) {
+export function startBGM() {
   if (bgmPlaying) return
   bgmPlaying = true
 
   const ctx = getCtx()
-  const BPM = bpm || 130  // 恭喜发财原曲节奏感（可传入加速BPM）
+  const BPM = 130
   const beat = 60 / BPM
   const eighth = beat / 2
-  const sixteenth = beat / 4
 
-  // ===== 基础频率 - D大调五声音阶 =====
-  // 用频率比率表示，后面乘以 keyShift 实现变调
-  const BASE = [
-    146.8, 165.0, 185.0, 220.0, 246.9,   // 0-4:  低音 D E F# A B
-    293.7, 330.0, 370.0, 440.0, 493.9,   // 5-9:  中音 D E F# A B
-    587.3, 659.3, 740.0, 880.0, 987.8,   // 10-14: 高音 D E F# A B
-    1174.7, 1318.5, 1480.0, 1760.0,      // 15-18: 超高 D E F# A
-  ]
-
-  // ===== 变调系数（核心！恭喜发财标志性升Key）=====
-  // 每个段落对应一个调: D → D → E → E → F → F → D（循环）
-  const KEY_SHIFTS = [
-    1.0,    // D调 (原调)
-    1.0,    // D调
-    1.0,    // D调
-    1.0,    // D调
-    1.122,  // E调 (升一个全音！变调来了！)
-    1.122,  // E调
-    1.122,  // E调
-    1.122,  // E调
-    1.260,  // F调 (再升！高潮感拉满！)
-    1.260,  // F调
-    1.260,  // F调
-    1.260,  // F调
-    1.0,    // 回到D调（循环）
-    1.0,    // D调
-    1.0,    // D调
-    1.0,    // D调
-  ]
-
-  // 获取变调后频率
-  function freq(noteIdx, shift) {
-    if (noteIdx < 0) return 0
-    return BASE[noteIdx] * shift
-  }
-
-  // ===== 旋律 - 恭喜发财风格 Hook =====
-  // 模仿 "恭喜你发财 恭喜你精彩" 的旋律走向
-  // 16个十六分音符 = 1小节, -1=休止
-  const melodyPhrases = [
-    // === A段: "恭喜你发财" Hook（重复洗脑！）===
-    // "恭-喜-你-发-财~" 上行 hook
-    [5, 5, -1, 7, 7, -1, 5, 7,   9, 10, -1, -1, 10, -1, -1, -1],
-    // "恭-喜-你-精-彩~" 变化
-    [5, 5, -1, 7, 7, -1, 5, 9,   10, 12, -1, -1, 10, -1, -1, -1],
-    // "最好的请过来" 下行回应
-    [12, -1, 10, 9, -1, 7, 9, 10,  9, -1, 7, 5, -1, -1, 5, -1],
-    // "不好的请走开~" 收束
-    [12, -1, 10, 9, -1, 7, 5, 7,   5, -1, -1, -1, 5, -1, -1, -1],
-
-    // === B段: 副歌变奏（更高能量）===
-    // "恭~喜~发~财~" 每个字拉长 + 高音
-    [10, 10, -1, 12, 12, -1, 14, -1,  14, 12, -1, 10, -1, 10, -1, -1],
-    // 高音展开
-    [10, 12, -1, 14, 14, -1, 15, -1,  15, 14, -1, 12, -1, 10, -1, -1],
-    // 回落
-    [14, -1, 12, 10, -1, 9, 10, 12,   10, -1, 9, 7, -1, -1, 5, -1],
-    // 收束句 (为变调做铺垫)
-    [9, 10, -1, 12, 10, -1, 9, 7,    9, -1, 10, -1, -1, -1, -1, -1],
-
-    // === C段: 高潮（变调后更激昂）===
-    [10, 10, 12, 12, 14, -1, 15, 14,  12, 10, -1, 12, 14, -1, -1, -1],
-    [15, -1, 14, 12, 14, -1, 15, -1,  15, 14, 12, 10, -1, 10, -1, -1],
-    [5, 7, -1, 9, 10, -1, 12, 10,   9, 7, -1, 5, 7, -1, 9, -1],
-    [10, -1, 12, 14, 15, -1, 14, 12,  10, -1, -1, -1, 10, -1, -1, -1],
-
-    // === D段: 间奏律动 ===
-    [10, -1, 10, -1, 12, -1, 10, 9,   10, -1, 10, -1, 12, -1, 14, -1],
-    [10, -1, 10, -1, 9, -1, 7, 9,    10, -1, 10, -1, 12, -1, 10, -1],
-    [5, -1, 7, -1, 9, -1, 10, -1,    12, -1, 10, -1, 9, -1, 7, -1],
-    [10, 12, 14, 12, 10, 9, 10, -1,   -1, -1, -1, -1, -1, -1, -1, -1],
-  ]
-
-  // ===== Funky 鼓组 - Pop/Funk 四四拍 =====
-  // K=底鼓 S=军鼓 H=闭合踩镲 O=开放踩镲 .=休止
-  const drumPatterns = [
-    // 基本 Funk Beat
-    'K.H.S.H.K.HOS.H.',
-    'K.H.S.HHK.H.S.HO',
-    // 加花变化
-    'K.HHS.H.KKH.S.H.',
-    'K.H.S.HOK.HHS.HH',
-    // 密集律动（高潮段用）
-    'KKHHS.HHKKH.S.HO',
-    'K.HHS.HOKKHHS.HH',
-    // 间奏轻量
-    'K.H.S.H.K.H.S.H.',
-    'K.H.S.H.K.H.S.HO',
-  ]
-
-  // ===== Funky Bass（律动感重！切分音！）=====
-  // Funk bass = 根音跳动 + 八度 + 五度 + 切分
-  const bassLines = [
-    // Funk 切分 bass (D根音)
-    [5, -1, -1, 5, -1, -1, 0, -1,   5, -1, -1, 5, -1, 7, -1, -1],
-    [5, -1, -1, 5, -1, 7, -1, 5,    -1, -1, 4, -1, 5, -1, -1, -1],
-    // 变化 bass
-    [5, -1, 0, -1, 5, -1, -1, 7,    -1, 5, -1, -1, 4, -1, 5, -1],
-    [0, -1, -1, 5, -1, -1, 7, -1,    5, -1, -1, 4, -1, 5, -1, -1],
-    // 高能 bass（密集）
-    [5, -1, 5, 7, -1, 5, 0, -1,     5, -1, 5, 7, -1, 9, 5, -1],
-    [5, 0, -1, 5, 7, -1, 5, -1,     4, -1, 5, -1, 7, 5, -1, -1],
-  ]
-
-  // ===== 和弦 Stab（铜管短促和弦 - 恭喜发财标志！）=====
-  // 每组 = 一小节内的和弦时机, [拍位, 和弦音数组]
-  const chordStabs = [
-    // "恭喜" 风格短促铜管 stab
-    [[0, [5,7,10]], [4, [5,7,10]], [10, [7,9,12]]],
-    [[0, [5,9,12]], [4, [5,9,12]], [10, [5,7,10]]],
-    // 高能 stab
-    [[0, [5,7,10]], [2, [5,7,10]], [4, [7,9,12]], [8, [5,9,12]], [12, [5,7,10]]],
-    [[0, [7,9,12]], [4, [5,7,10]], [8, [7,9,12]], [12, [9,12,14]]],
-    // 轻量
-    [[0, [5,7,10]], [8, [7,9,12]]],
-    [[0, [5,9,12]], [8, [5,7,10]]],
-  ]
-
-  let barCount = 0  // 总小节计数器（用于变调）
-  let melodyIdx = 0
-  let drumIdx = 0
-  let bassIdx = 0
-  let stabIdx = 0
-
-  // --- 缓存鼓组噪声Buffer（只创建一次）---
+  // 缓存鼓组Buffer
   if (!drumBufs) {
     const kickLen = Math.floor(ctx.sampleRate * 0.02)
     const kickBuf = ctx.createBuffer(1, kickLen, ctx.sampleRate)
     const kd = kickBuf.getChannelData(0)
     for (let i = 0; i < kickLen; i++) kd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (kickLen * 0.15))
-
     const snareLen = Math.floor(ctx.sampleRate * 0.1)
     const snareBuf = ctx.createBuffer(1, snareLen, ctx.sampleRate)
     const sd = snareBuf.getChannelData(0)
     for (let i = 0; i < snareLen; i++) sd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (snareLen * 0.2))
-
     const chLen = Math.floor(ctx.sampleRate * 0.03)
     const chBuf = ctx.createBuffer(1, chLen, ctx.sampleRate)
     const cd = chBuf.getChannelData(0)
     for (let i = 0; i < chLen; i++) cd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (chLen * 0.2))
-
     const ohLen = Math.floor(ctx.sampleRate * 0.12)
     const ohBuf = ctx.createBuffer(1, ohLen, ctx.sampleRate)
     const od = ohBuf.getChannelData(0)
     for (let i = 0; i < ohLen; i++) od[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ohLen * 0.4))
-
     drumBufs = { kickBuf, snareBuf, chBuf, ohBuf }
   }
 
-  // --- 播放合成音（带变调）---
-  function note(f, dur, type, vol, startTime) {
+  // ===== 恭喜发财标志性变调升Key！D → E → F → D 循环 =====
+  const KEY_SHIFTS = [
+    1.0, 1.0, 1.0, 1.0,          // D调
+    1.0, 1.0, 1.0, 1.0,          // D调
+    1.122, 1.122, 1.122, 1.122,  // E调（升了！）
+    1.122, 1.122, 1.122, 1.122,  // E调
+    1.260, 1.260, 1.260, 1.260,  // F调（再升！高潮！）
+    1.260, 1.260, 1.260, 1.260,  // F调
+    1.0, 1.0, 1.0, 1.0,          // 回到D调
+    1.0, 1.0, 1.0, 1.0,          // D调
+  ]
+
+  // ===== D大调和弦 I-IV-V-I 进行（欢乐感！）=====
+  const CHORDS = [
+    [293.7, 370.0, 440.0],   // D大调 (I)
+    [392.0, 493.9, 587.3],   // G大调 (IV)
+    [440.0, 554.4, 659.3],   // A大调 (V)
+    [293.7, 370.0, 440.0],   // D大调 (I)
+  ]
+
+  // 低音根音（D大调进行根音）
+  const BASS = [146.8, 196.0, 220.0, 146.8]
+
+  // ===== 恭喜发财旋律 - D大调五声音阶 =====
+  // D5=587 E5=659 F#5=740 A5=880 B5=988 D6=1175
+  // 8分音符 x 8 = 1小节, 0=休止
+  const MELODY = [
+    // === A段: "恭喜你发财" Hook ===
+    [587, 587, 0, 740, 740, 0, 587, 740],      // "恭-喜-你-发" 上行hook
+    [880, 988, 0, 0, 988, 0, 0, 0],             // "财~~" 延续
+    [587, 587, 0, 740, 740, 0, 587, 880],       // "恭-喜-你-精" 变化
+    [988, 1175, 0, 0, 988, 0, 0, 0],            // "彩~~" 更高
+
+    // === B段: 副歌展开 ===
+    [1175, 0, 988, 880, 0, 740, 880, 988],      // "最好的请过来" 下行
+    [880, 0, 740, 587, 0, 740, 587, 0],         // "不好的请走开"
+    [880, 880, 0, 988, 988, 0, 1175, 0],        // 高音展开
+    [1175, 988, 880, 740, 880, 0, 0, 0],         // 华丽收束
+
+    // === C段: 高潮变奏 ===
+    [988, 988, 0, 1175, 1175, 0, 988, 880],     // 高音hook加强
+    [1175, 0, 988, 0, 880, 740, 880, 0],        // 快速穿梭
+    [587, 740, 0, 880, 988, 0, 1175, 988],      // 上行冲刺
+    [880, 0, 0, 0, 880, 0, 0, 0],               // 呼吸
+
+    // === D段: 间奏律动 ===
+    [880, 0, 880, 0, 988, 0, 880, 740],         // 节奏感
+    [880, 0, 880, 0, 740, 0, 587, 740],         // 回落
+    [587, 0, 740, 0, 880, 0, 988, 0],           // 阶梯上行
+    [988, 1175, 988, 880, 740, 0, 0, 0],        // 快速下行收束
+  ]
+
+  // ===== Pop/Funk 鼓组（8分音符网格）=====
+  // K=底鼓 S=军鼓 H=踩镲 O=开放镲 .=休止
+  const DRUMS = [
+    'K.H.S.HO',   // 基本groove
+    'K.H.S.KH',   // 变化
+    'K.HHS.H.',   // 密集镲
+    'K.H.SKHO',   // 加花
+  ]
+
+  // ===== 铜管Stab节奏（每小节哪几个8分音符位置触发）=====
+  const STAB_PATTERNS = [
+    [0, 4],           // 拍1和拍3
+    [0, 3],           // 拍1和切分
+    [0, 4, 6],        // 拍1、3、4 (高能)
+    [0, 2, 4],        // 密集stab
+  ]
+
+  let barCount = 0
+
+  // --- 高效单音节点（带滤波 + 自动清理）---
+  function fNote(f, dur, type, vol, startTime, filterMul) {
     if (f <= 0) return
     const o = ctx.createOscillator()
     const g = ctx.createGain()
+    const flt = ctx.createBiquadFilter()
     o.type = type
     o.frequency.value = f
+    flt.type = 'lowpass'
+    flt.frequency.value = f * (filterMul || 3)
+    flt.Q.value = 1
     g.gain.setValueAtTime(0, startTime)
-    g.gain.linearRampToValueAtTime(vol, startTime + 0.008)
+    g.gain.linearRampToValueAtTime(vol, startTime + 0.01)
     g.gain.setValueAtTime(vol * 0.7, startTime + dur * 0.4)
     g.gain.exponentialRampToValueAtTime(0.001, startTime + dur)
-    o.connect(g)
-    g.connect(bgmGain)
-    o.start(startTime)
-    o.stop(startTime + dur + 0.02)
-    o.onended = () => { o.disconnect(); g.disconnect() }
+    o.connect(flt); flt.connect(g); g.connect(bgmGain)
+    o.start(startTime); o.stop(startTime + dur + 0.02)
+    o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
     bgmNodes.push(o)
   }
 
-  // --- Funky brass stab（短促铜管）---
-  function brassStab(freqs, startTime) {
-    freqs.forEach(f => {
-      // square wave + 滤波 = 铜管质感
-      const o = ctx.createOscillator()
-      const g = ctx.createGain()
-      const flt = ctx.createBiquadFilter()
-      o.type = 'square'
-      o.frequency.value = f
-      flt.type = 'lowpass'
-      flt.frequency.value = f * 3
-      flt.Q.value = 1
-      g.gain.setValueAtTime(0, startTime)
-      g.gain.linearRampToValueAtTime(0.07, startTime + 0.01)
-      g.gain.setValueAtTime(0.06, startTime + 0.04)
-      g.gain.exponentialRampToValueAtTime(0.001, startTime + 0.12)
-      o.connect(flt)
-      flt.connect(g)
-      g.connect(bgmGain)
-      o.start(startTime)
-      o.stop(startTime + 0.15)
-      o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
-      bgmNodes.push(o)
-    })
-  }
-
-  // --- Pop 鼓组（使用缓存Buffer）---
-  function drum(type, startTime) {
-    if (type === 'K') {
-      // 底鼓 - 有力的 Kick
-      const kick = ctx.createOscillator()
-      const kGain = ctx.createGain()
-      kick.type = 'sine'
-      kick.frequency.setValueAtTime(160, startTime)
-      kick.frequency.exponentialRampToValueAtTime(35, startTime + 0.12)
-      kGain.gain.setValueAtTime(0.28, startTime)
-      kGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15)
-      kick.connect(kGain)
-      kGain.connect(bgmGain)
-      kick.start(startTime)
-      kick.stop(startTime + 0.18)
-      kick.onended = () => { kick.disconnect(); kGain.disconnect() }
-      bgmNodes.push(kick)
-      // 底鼓 click 层（使用缓存Buffer）
-      const src = ctx.createBufferSource()
-      src.buffer = drumBufs.kickBuf
-      const sg = ctx.createGain()
-      const sf = ctx.createBiquadFilter()
-      sf.type = 'highpass'; sf.frequency.value = 2000
-      sg.gain.setValueAtTime(0.08, startTime)
-      sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.03)
-      src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
-      src.start(startTime); src.stop(startTime + 0.05)
-      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
-      bgmNodes.push(src)
-    } else if (type === 'S') {
-      // 军鼓 - Pop snare（使用缓存Buffer）
-      const src = ctx.createBufferSource()
-      src.buffer = drumBufs.snareBuf
-      const sg = ctx.createGain()
-      const sf = ctx.createBiquadFilter()
-      sf.type = 'bandpass'; sf.frequency.value = 1200; sf.Q.value = 0.8
-      sg.gain.setValueAtTime(0.18, startTime)
-      sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1)
-      src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
-      src.start(startTime); src.stop(startTime + 0.12)
-      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
-      bgmNodes.push(src)
-      // snare body
-      const so = ctx.createOscillator()
-      const soG = ctx.createGain()
-      so.type = 'triangle'; so.frequency.value = 200
-      soG.gain.setValueAtTime(0.1, startTime)
-      soG.gain.exponentialRampToValueAtTime(0.001, startTime + 0.06)
-      so.connect(soG); soG.connect(bgmGain)
-      so.start(startTime); so.stop(startTime + 0.08)
-      so.onended = () => { so.disconnect(); soG.disconnect() }
-      bgmNodes.push(so)
-    } else if (type === 'H') {
-      // 闭合踩镲（使用缓存Buffer）
-      const src = ctx.createBufferSource()
-      src.buffer = drumBufs.chBuf
-      const sg = ctx.createGain()
-      const sf = ctx.createBiquadFilter()
-      sf.type = 'highpass'; sf.frequency.value = 7000; sf.Q.value = 0.5
-      sg.gain.setValueAtTime(0.08, startTime)
-      sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.03)
-      src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
-      src.start(startTime); src.stop(startTime + 0.05)
-      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
-      bgmNodes.push(src)
-    } else if (type === 'O') {
-      // 开放踩镲（使用缓存Buffer）
-      const src = ctx.createBufferSource()
-      src.buffer = drumBufs.ohBuf
-      const sg = ctx.createGain()
-      const sf = ctx.createBiquadFilter()
-      sf.type = 'highpass'; sf.frequency.value = 5000; sf.Q.value = 0.3
-      sg.gain.setValueAtTime(0.07, startTime)
-      sg.gain.exponentialRampToValueAtTime(0.001, startTime + 0.12)
-      src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
-      src.start(startTime); src.stop(startTime + 0.15)
-      src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
-      bgmNodes.push(src)
-    }
-  }
-
-  // ===== 调度一小节 =====
   function scheduleBar() {
     if (!bgmPlaying) return
 
-    // 每2小节清理已停止的旧节点引用，防止数组无限增长导致卡顿
+    // 每2小节清理旧节点引用
     if (barCount > 0 && barCount % 2 === 0) {
-      const intervalId = bgmNodes._intervalId
+      const iid = bgmNodes._intervalId
       bgmNodes = []
-      bgmNodes._intervalId = intervalId
+      bgmNodes._intervalId = iid
     }
 
     const now = ctx.currentTime + 0.05
     const shift = KEY_SHIFTS[barCount % KEY_SHIFTS.length]
+    const ci = barCount % CHORDS.length
+    const chord = CHORDS[ci]
+    const bassF = BASS[ci]
+    const melody = MELODY[barCount % MELODY.length]
+    const drumPat = DRUMS[barCount % DRUMS.length]
+    const stabPat = STAB_PATTERNS[barCount % STAB_PATTERNS.length]
 
-    for (let i = 0; i < 16; i++) {
-      const t = now + i * sixteenth
+    // ===== 1) 明亮和弦Pad（持续整小节，带stab式起音 = 恭喜感！）=====
+    // triangle波 → 明亮温暖的大调和弦，高滤波截止 = 欢乐感
+    chord.forEach(f => {
+      const sf = f * shift
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      const flt = ctx.createBiquadFilter()
+      o.type = 'triangle'
+      o.frequency.value = sf
+      flt.type = 'lowpass'
+      flt.frequency.value = sf * 4  // 高截止 = 明亮！
+      flt.Q.value = 0.7
+      // 快速起音(stab感) → 持续pad → 淡出
+      g.gain.setValueAtTime(0, now)
+      g.gain.linearRampToValueAtTime(0.065, now + 0.015)
+      g.gain.setValueAtTime(0.04, now + beat * 0.3)
+      g.gain.setValueAtTime(0.035, now + beat * 3)
+      g.gain.exponentialRampToValueAtTime(0.001, now + beat * 4 + 0.05)
+      o.connect(flt); flt.connect(g); g.connect(bgmGain)
+      o.start(now); o.stop(now + beat * 4 + 0.1)
+      o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
+      bgmNodes.push(o)
+    })
 
-      // 1) 主旋律 - 模拟恭喜发财人声/唢呐
-      const melody = melodyPhrases[melodyIdx % melodyPhrases.length]
-      const mNoteIdx = melody[i]
-      if (mNoteIdx >= 0) {
-        const f = freq(mNoteIdx, shift)
-        // 主音 - square + lowpass = 模拟明亮的人声/唢呐
+    // ===== 2) Funky弹性Bass（每小节3次弹跳）=====
+    const bassTimes = [0, beat * 2, beat * 3]  // 拍1、3、4 → 弹跳律动
+    const bassVols = [0.13, 0.11, 0.09]
+    bassTimes.forEach((offset, bi) => {
+      const t = now + offset
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      const flt = ctx.createBiquadFilter()
+      o.type = 'sawtooth'
+      o.frequency.value = bassF * shift
+      flt.type = 'lowpass'
+      flt.frequency.value = 350
+      flt.Q.value = 3
+      g.gain.setValueAtTime(0, t)
+      g.gain.linearRampToValueAtTime(bassVols[bi], t + 0.01)
+      g.gain.setValueAtTime(bassVols[bi] * 0.7, t + beat * 0.4)
+      g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.5)
+      o.connect(flt); flt.connect(g); g.connect(bgmGain)
+      o.start(t); o.stop(t + beat * 1.6)
+      o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
+      bgmNodes.push(o)
+    })
+
+    // ===== 3) 恭喜发财旋律（唢呐/笛子感 - square波明亮音色）=====
+    for (let i = 0; i < 8; i++) {
+      const t = now + i * eighth
+      const f = melody[i]
+      if (f > 0) {
+        const sf = f * shift
+        // 主旋律（square + 高滤波 = 明亮唢呐感）
+        fNote(sf, eighth * 1.5, 'square', 0.08, t, 4)
+        // 柔和衬底（sine低八度）
+        fNote(sf * 0.5, eighth * 1.2, 'sine', 0.02, t, 6)
+      }
+    }
+
+    // ===== 4) 铜管Stab（恭喜发财标志！短促和弦重音）=====
+    stabPat.forEach(pos => {
+      const t = now + pos * eighth
+      chord.forEach(f => {
+        const sf = f * shift * 2  // 高八度stab更明亮
         const o = ctx.createOscillator()
         const g = ctx.createGain()
         const flt = ctx.createBiquadFilter()
         o.type = 'square'
-        o.frequency.value = f
+        o.frequency.value = sf
         flt.type = 'lowpass'
-        flt.frequency.value = f * 4
-        flt.Q.value = 1.5
+        flt.frequency.value = sf * 2.5
+        flt.Q.value = 1
         g.gain.setValueAtTime(0, t)
-        g.gain.linearRampToValueAtTime(0.09, t + 0.01)
-        g.gain.setValueAtTime(0.07, t + sixteenth * 0.5)
-        g.gain.exponentialRampToValueAtTime(0.001, t + sixteenth * 1.6)
+        g.gain.linearRampToValueAtTime(0.055, t + 0.008)
+        g.gain.setValueAtTime(0.045, t + 0.03)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
         o.connect(flt); flt.connect(g); g.connect(bgmGain)
-        o.start(t); o.stop(t + sixteenth * 1.8)
+        o.start(t); o.stop(t + 0.12)
         o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
         bgmNodes.push(o)
-        // 柔和衬底 sine
-        note(f, sixteenth * 1.5, 'sine', 0.04, t)
-        // 高八度闪亮
-        note(f * 2, sixteenth * 0.8, 'sine', 0.015, t)
+      })
+    })
+
+    // ===== 5) Pop鼓组（轻快groove，使用缓存Buffer）=====
+    for (let i = 0; i < 8; i++) {
+      const t = now + i * eighth
+      const d = drumPat[i]
+      if (d === 'K') {
+        const kick = ctx.createOscillator()
+        const kGain = ctx.createGain()
+        kick.type = 'sine'
+        kick.frequency.setValueAtTime(150, t)
+        kick.frequency.exponentialRampToValueAtTime(40, t + 0.1)
+        kGain.gain.setValueAtTime(0.25, t)
+        kGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15)
+        kick.connect(kGain); kGain.connect(bgmGain)
+        kick.start(t); kick.stop(t + 0.18)
+        kick.onended = () => { kick.disconnect(); kGain.disconnect() }
+        bgmNodes.push(kick)
+      } else if (d === 'S') {
+        const src = ctx.createBufferSource()
+        src.buffer = drumBufs.snareBuf
+        const sg = ctx.createGain()
+        const sf = ctx.createBiquadFilter()
+        sf.type = 'bandpass'; sf.frequency.value = 1200; sf.Q.value = 0.8
+        sg.gain.setValueAtTime(0.16, t)
+        sg.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
+        src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
+        src.start(t); src.stop(t + 0.12)
+        src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
+        bgmNodes.push(src)
+      } else if (d === 'H') {
+        const src = ctx.createBufferSource()
+        src.buffer = drumBufs.chBuf
+        const sg = ctx.createGain()
+        const sf = ctx.createBiquadFilter()
+        sf.type = 'highpass'; sf.frequency.value = 7000; sf.Q.value = 0.5
+        sg.gain.setValueAtTime(0.07, t)
+        sg.gain.exponentialRampToValueAtTime(0.001, t + 0.03)
+        src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
+        src.start(t); src.stop(t + 0.05)
+        src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
+        bgmNodes.push(src)
+      } else if (d === 'O') {
+        const src = ctx.createBufferSource()
+        src.buffer = drumBufs.ohBuf
+        const sg = ctx.createGain()
+        const sf = ctx.createBiquadFilter()
+        sf.type = 'highpass'; sf.frequency.value = 5000; sf.Q.value = 0.3
+        sg.gain.setValueAtTime(0.06, t)
+        sg.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
+        src.connect(sf); sf.connect(sg); sg.connect(bgmGain)
+        src.start(t); src.stop(t + 0.12)
+        src.onended = () => { src.disconnect(); sf.disconnect(); sg.disconnect() }
+        bgmNodes.push(src)
       }
+    }
 
-      // 2) Funk 鼓组
-      const dPat = drumPatterns[drumIdx % drumPatterns.length]
-      const dChar = dPat[i % dPat.length]
-      if (dChar !== '.') drum(dChar, t)
-
-      // 3) Funky Bass（超级律动！）
-      const bLine = bassLines[bassIdx % bassLines.length]
-      const bNoteIdx = bLine[i]
-      if (bNoteIdx >= 0) {
-        const bf = freq(bNoteIdx, shift) * 0.5
-        // Bass 用 sawtooth + lowpass = 厚实的 Funk bass
+    // ===== 6) 喜庆铃铛闪烁（每4小节一次高音点缀）=====
+    if (barCount % 4 === 0) {
+      const bellNotes = [1175, 1480, 1760]
+      bellNotes.forEach((f, i) => {
+        const t = now + beat * 3.5 + i * 0.08
+        const sf = f * shift
         const o = ctx.createOscillator()
         const g = ctx.createGain()
-        const flt = ctx.createBiquadFilter()
-        o.type = 'sawtooth'
-        o.frequency.value = bf
-        flt.type = 'lowpass'
-        flt.frequency.value = 400
-        flt.Q.value = 2
+        o.type = 'sine'
+        o.frequency.value = sf
         g.gain.setValueAtTime(0, t)
-        g.gain.linearRampToValueAtTime(0.1, t + 0.008)
-        g.gain.setValueAtTime(0.08, t + sixteenth * 0.5)
-        g.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.7)
-        o.connect(flt); flt.connect(g); g.connect(bgmGain)
-        o.start(t); o.stop(t + beat * 0.8)
-        o.onended = () => { o.disconnect(); flt.disconnect(); g.disconnect() }
+        g.gain.linearRampToValueAtTime(0.04, t + 0.01)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.2)
+        o.connect(g); g.connect(bgmGain)
+        o.start(t); o.stop(t + 0.22)
+        o.onended = () => { o.disconnect(); g.disconnect() }
         bgmNodes.push(o)
-      }
-
-      // 4) 铜管和弦 Stab
-      const stabs = chordStabs[stabIdx % chordStabs.length]
-      stabs.forEach(([pos, chordNotes]) => {
-        if (i === pos) {
-          const shifted = chordNotes.map(n => freq(n, shift))
-          brassStab(shifted, t)
-        }
       })
     }
 
-    // 切换到下一小节
     barCount++
-    melodyIdx = (melodyIdx + 1) % melodyPhrases.length
-    // 每 2 小节切换鼓/bass/和弦
-    if (barCount % 2 === 0) {
-      drumIdx = (drumIdx + 1) % drumPatterns.length
-      bassIdx = (bassIdx + 1) % bassLines.length
-      stabIdx = (stabIdx + 1) % chordStabs.length
-    }
   }
 
-  // 每小节调度一次
-  const barMs = sixteenth * 16 * 1000
+  // 每小节调度一次（4拍）
+  const barMs = beat * 4 * 1000
   scheduleBar()
   const intervalId = setInterval(scheduleBar, barMs)
   bgmNodes._intervalId = intervalId
