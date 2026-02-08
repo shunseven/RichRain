@@ -84,6 +84,8 @@ const SYSTEM_EVENTS = [
   { id: 'sys_near_star', name: '🌠 走到星星前两格', emoji: '🌠', icon: _sysIcon('🌠'), description: '瞬移到星星前两格！', color: '#fdcb6e' },
   { id: 'sys_random_pos', name: '🎲 跳到随机位置', emoji: '🎲', icon: _sysIcon('🎲'), description: '随机传送到棋盘任意位置！', color: '#00cec9' },
   { id: 'sys_steal_coins', name: '🕵️ 抽取金币', emoji: '🕵️', icon: _sysIcon('🕵️'), description: '从随机角色身上抽取金币！', color: '#e67e22' },
+  { id: 'sys_star_price_up', name: '📈 星星涨价', emoji: '📈', icon: _sysIcon('📈'), description: '场上所有星星价格上涨5金币！', color: '#ff6348' },
+  { id: 'sys_add_star', name: '🌟 额外星星', emoji: '🌟', icon: _sysIcon('🌟'), description: '场上出现第二颗星星！', color: '#f9ca24' },
 ]
 
 // === 金币事件池（-3 到 8） ===
@@ -194,6 +196,9 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   // 星星初始位置 - 随机放在任意格子上
   let starPos = savedState ? savedState.starPos : Math.floor(Math.random() * BOARD_SIZE)
 
+  // 星星价格（可涨价，购买后恢复原价10）
+  let starPrice = savedState ? (savedState.starPrice || 10) : 10
+
   // 最后三轮状态
   let starPos2 = savedState ? savedState.starPos2 : -1           // 第二颗星位置 (-1 = 未激活)
   let star2Active = savedState ? savedState.star2Active : false     // 第二颗星是否激活
@@ -211,6 +216,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
       starPos2,
       star2Active,
       isLastThreeRounds,
+      starPrice,
     })
   }
 
@@ -537,7 +543,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   // ⑥ 价格标签 - 在星星下方
   const starLabel = new Text({
     x: starBaseX, y: starCY() + STAR_FONT / 2 - 8,
-    width: TILE_W, text: '10💰', fill: '#ffd700', fontSize: 14,
+    width: TILE_W, text: `${starPrice}💰`, fill: starPrice > 10 ? '#ff6348' : '#ffd700', fontSize: 14,
     fontWeight: 'bold', textAlign: 'center',
   })
   leafer.add(starLabel)
@@ -573,10 +579,20 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   leafer.add(star2Text)
 
   const star2Label = new Text({
-    x: -200, y: -200, width: TILE_W, text: '10💰', fill: '#ff6b6b', fontSize: 14,
+    x: -200, y: -200, width: TILE_W, text: `${starPrice}💰`, fill: starPrice > 10 ? '#ff6348' : '#ff6b6b', fontSize: 14,
     fontWeight: 'bold', textAlign: 'center', opacity: 0,
   })
   leafer.add(star2Label)
+
+  // ===== 更新星星价格标签 =====
+  function updateStarPriceLabels() {
+    const priceText = `${starPrice}💰`
+    const isInflated = starPrice > 10
+    starLabel.text = priceText
+    starLabel.fill = isInflated ? '#ff6348' : '#ffd700'
+    star2Label.text = priceText
+    star2Label.fill = isInflated ? '#ff6348' : '#ff6b6b'
+  }
 
   // ===== 星星综合动画 =====
   let starAnimT = 0
@@ -1084,11 +1100,11 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   }
 
   // ===== 星星弹窗 =====
-  function showStarPopup(player) {
+  function showStarPopup(player, cost = 10) {
     return new Promise(resolve => {
       playStarCollect()  // 🔊 获得星星音效
       const ov = document.createElement('div'); ov.className = 'star-popup'
-      ov.innerHTML = `<div class="star-icon">⭐</div><div class="star-text">${player.name} 获得一颗星！<br/><span style="font-size:0.8em;color:#aaa">-10 金币</span></div>`
+      ov.innerHTML = `<div class="star-icon">⭐</div><div class="star-text">${player.name} 获得一颗星！<br/><span style="font-size:0.8em;color:#aaa">-${cost} 金币</span></div>`
       document.body.appendChild(ov)
       setTimeout(() => { ov.remove(); resolve() }, 2000)
     })
@@ -1321,17 +1337,23 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
       playStep()  // 🔊 移动一步音效
       await sleep(350)
       // 检查星星1
-      if (p.position === starPos && p.coins >= 10) {
-        p.coins -= 10; p.stars++
+      if (p.position === starPos && p.coins >= starPrice) {
+        const cost = starPrice
+        p.coins -= cost; p.stars++
+        starPrice = 10  // 购买后恢复原价
+        updateStarPriceLabels()
         updateInfoPanel(); updatePlayersPanel()
-        await showStarPopup(p)
+        await showStarPopup(p, cost)
         moveStar()
       }
       // 检查星星2（最后三轮激活）
-      if (star2Active && p.position === starPos2 && p.coins >= 10) {
-        p.coins -= 10; p.stars++
+      if (star2Active && p.position === starPos2 && p.coins >= starPrice) {
+        const cost = starPrice
+        p.coins -= cost; p.stars++
+        starPrice = 10  // 购买后恢复原价
+        updateStarPriceLabels()
         updateInfoPanel(); updatePlayersPanel()
-        await showStarPopup(p)
+        await showStarPopup(p, cost)
         // 移动星星2到新位置
         const candidates = []
         for (let i = 0; i < BOARD_SIZE; i++) {
@@ -1354,17 +1376,23 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
       playStep()  // 🔊 移动一步音效
       await sleep(350)
       // 检查星星1
-      if (p.position === starPos && p.coins >= 10) {
-        p.coins -= 10; p.stars++
+      if (p.position === starPos && p.coins >= starPrice) {
+        const cost = starPrice
+        p.coins -= cost; p.stars++
+        starPrice = 10  // 购买后恢复原价
+        updateStarPriceLabels()
         updateInfoPanel(); updatePlayersPanel()
-        await showStarPopup(p)
+        await showStarPopup(p, cost)
         moveStar()
       }
       // 检查星星2（最后三轮激活）
-      if (star2Active && p.position === starPos2 && p.coins >= 10) {
-        p.coins -= 10; p.stars++
+      if (star2Active && p.position === starPos2 && p.coins >= starPrice) {
+        const cost = starPrice
+        p.coins -= cost; p.stars++
+        starPrice = 10  // 购买后恢复原价
+        updateStarPriceLabels()
         updateInfoPanel(); updatePlayersPanel()
-        await showStarPopup(p)
+        await showStarPopup(p, cost)
         // 移动星星2到新位置
         const candidates = []
         for (let i = 0; i < BOARD_SIZE; i++) {
@@ -1469,6 +1497,26 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         await teleportPlayer(pi, randomPos)
         break
       }
+      case 'sys_star_price_up': {
+        const oldPrice = starPrice
+        starPrice = Math.min(starPrice + 5, 20)
+        updateStarPriceLabels()
+        await showSystemEventResult(sysEvent, `星星价格从 ${oldPrice}💰 涨到了 ${starPrice}💰！${starPrice >= 20 ? '（已达上限）' : ''}`)
+        break
+      }
+      case 'sys_add_star': {
+        if (star2Active) {
+          await showSystemEventResult(sysEvent, '场上已经有两颗星星了！')
+        } else {
+          const candidates = []
+          for (let i = 0; i < BOARD_SIZE; i++) { if (i !== starPos) candidates.push(i) }
+          if (candidates.length > 0) {
+            showStar2(candidates[Math.floor(Math.random() * candidates.length)])
+            await showSystemEventResult(sysEvent, '场上出现了第二颗星星！快去抢吧！')
+          }
+        }
+        break
+      }
       case 'sys_steal_coins': {
         const others = players.filter((_, i) => i !== pi)
         if (others.length === 0) {
@@ -1527,10 +1575,15 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         }
       }
     } else if (type === 'system') {
-      // 系统事件格子 → 从5个系统事件中抽取
+      // 系统事件格子 → 从系统事件中抽取（条件过滤不可用事件）
+      const availSysEvents = SYSTEM_EVENTS.filter(e => {
+        if (e.id === 'sys_star_price_up' && starPrice >= 20) return false
+        if (e.id === 'sys_add_star' && star2Active) return false
+        return true
+      })
       setHint('⚡ 系统事件触发！')
       playSystemEvent()  // 🔊 系统事件音效
-      const ev = await showRoller('⚡ 系统事件抽取中...', SYSTEM_EVENTS, SYSTEM_EVENTS.length, p)
+      const ev = await showRoller('⚡ 系统事件抽取中...', availSysEvents, availSysEvents.length, p)
       if (ev) {
         await executeSystemEvent(pi, ev)
       }
