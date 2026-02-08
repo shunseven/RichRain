@@ -1196,8 +1196,6 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
 
         playVictory()  // 🔊 胜利音效
         btnConfirm.style.display = 'none'
-        rankInst.style.display = 'block'
-        rankInst.textContent = '选择完成！按 Enter 键继续'
 
         // 结算规则
         // 1人胜: 胜者+5, 其余+2
@@ -1208,6 +1206,13 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         if (selectedWinners.size === 3) winCoins = 3
 
         const winners = Array.from(selectedWinners)
+
+        // 显示醒目的金币奖励横幅
+        const banner = document.createElement('div')
+        banner.className = 'win-coins-banner'
+        banner.textContent = `🎉 胜者获得 +${winCoins} 💰 金币！`
+        const rankArea = ov.querySelector('#rank-area')
+        rankArea.parentNode.insertBefore(banner, rankArea)
         
         // 更新金币和UI
         players.forEach((p, i) => {
@@ -1216,18 +1221,34 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
           
           if (selectedWinners.has(i)) {
             p.coins += winCoins
-            badge.textContent = `🏆 +${winCoins}💰`
+            badge.textContent = `🏆 +${winCoins} 💰`
             badge.style.color = '#ffd700'
             playerEl.classList.add('ranked', 'winner')
             playerEl.style.border = '2px solid #ffd700'
+
+            // 发射金币粒子特效
+            const rect = playerEl.getBoundingClientRect()
+            for (let k = 0; k < 6; k++) {
+              const particle = document.createElement('div')
+              particle.className = 'coin-particle'
+              particle.textContent = '💰'
+              particle.style.left = (rect.left + rect.width / 2 + (Math.random() - 0.5) * 60) + 'px'
+              particle.style.top = (rect.top + 10) + 'px'
+              particle.style.animationDelay = (k * 0.12) + 's'
+              document.body.appendChild(particle)
+              setTimeout(() => particle.remove(), 1500)
+            }
           } else {
             p.coins += 2
-            badge.textContent = '+2💰'
+            badge.textContent = '+2 💰'
             badge.style.color = '#aaa'
             playerEl.classList.add('ranked')
             playerEl.style.border = 'none'
           }
         })
+
+        rankInst.style.display = 'block'
+        rankInst.textContent = '🎊 选择完成！按 Enter 键继续'
 
         const handler = (e) => {
           if (e.code === 'Enter') { document.removeEventListener('keydown', handler); ov.remove(); resolve() }

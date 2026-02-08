@@ -1544,6 +1544,75 @@ body {
   font-size: 0.8em;
   font-weight: bold;
   color: #ffd700;
+  transition: all 0.3s;
+}
+
+/* 胜利者金币奖励 - 醒目动画 */
+.rank-player.winner {
+  opacity: 1 !important;
+  background: rgba(255,215,0,0.15);
+  transform: scale(1.08);
+  box-shadow: 0 0 25px rgba(255,215,0,0.4), 0 0 50px rgba(255,215,0,0.15);
+}
+
+.rank-player.winner .rank-badge {
+  font-size: 1.6em;
+  animation: coinBounce 0.6s ease forwards, coinGlow 1.5s ease-in-out infinite 0.6s;
+  text-shadow: 0 0 10px rgba(255,215,0,0.8), 0 0 20px rgba(255,215,0,0.4);
+}
+
+.rank-player:not(.winner).ranked .rank-badge {
+  font-size: 1em;
+  animation: fadeInBadge 0.4s ease forwards;
+}
+
+/* 金币飘浮动画 */
+@keyframes coinBounce {
+  0% { transform: scale(0) translateY(20px); opacity: 0; }
+  50% { transform: scale(1.4) translateY(-10px); opacity: 1; }
+  70% { transform: scale(0.9) translateY(2px); }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes coinGlow {
+  0%, 100% { text-shadow: 0 0 10px rgba(255,215,0,0.8), 0 0 20px rgba(255,215,0,0.4); }
+  50% { text-shadow: 0 0 20px rgba(255,215,0,1), 0 0 40px rgba(255,215,0,0.6), 0 0 60px rgba(255,215,0,0.3); }
+}
+
+@keyframes fadeInBadge {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 胜利大标题 */
+.win-coins-banner {
+  font-size: 2.5em;
+  font-weight: bold;
+  color: #ffd700;
+  margin: 20px 0 10px;
+  animation: bannerPop 0.7s ease forwards;
+  text-shadow: 0 0 15px rgba(255,215,0,0.6), 0 2px 8px rgba(0,0,0,0.5);
+}
+
+@keyframes bannerPop {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(3deg); opacity: 1; }
+  80% { transform: scale(0.95) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* 金币粒子效果 */
+.coin-particle {
+  position: absolute;
+  font-size: 1.5em;
+  pointer-events: none;
+  animation: coinFloat 1.2s ease-out forwards;
+  z-index: 999;
+}
+
+@keyframes coinFloat {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-80px) scale(0.3); }
 }
 
 .rank-instruction {
