@@ -37,7 +37,7 @@ function showMenu() {
 
   app.innerHTML = `
     <div class="menu-screen">
-      <button class="clear-cache-btn" id="btn-clear-cache">清除缓存</button>
+      <button class="clear-cache-btn" id="btn-clear-cache">恢复默认数据</button>
       <div class="menu-super-title">🧧 红包雨3.0 🧧</div>
       <div class="menu-title">🎉 新春派对大富翁 🎉</div>
       <div class="menu-subtitle">🧧 恭喜发财 · 万事如意 🧧</div>
@@ -100,8 +100,8 @@ function showMenu() {
   const clearBtn = document.getElementById('btn-clear-cache')
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
-      if (confirm('确定要清除所有本地数据吗？')) {
-        if (confirm('再次确认：此操作不可恢复，所有自定义设置和游戏进度都将丢失！')) {
+      if (confirm('确定要恢复所有默认数据吗？')) {
+        if (confirm('再次确认：此操作会将所有设置恢复为默认值，自定义修改和游戏进度都将丢失！')) {
           store.resetAll()
           location.reload()
         }
@@ -165,7 +165,7 @@ function showRoundSetup() {
 
 // ===== 结果界面 =====
 function showResults(params = {}) {
-  const { players = [] } = params
+  const { players = [], bonusRedPacket = 0 } = params
   const prize = store.getFinalPrize()
 
   // 排序: 星星多的在前，星星相同金币多的在前
@@ -206,7 +206,7 @@ function showResults(params = {}) {
               <div class="result-name">${p.name}</div>
               <div class="result-stats">⭐ ${p.stars} 星  |  💰 ${p.coins} 金币</div>
             </div>
-            ${i === 0 ? `<div class="result-prize"><img src="${prize.icon}" title="${prize.name}"/><div style="font-size:0.75em;color:#ffd700;margin-top:4px">${prize.name}</div></div>` : ''}
+            ${i === 0 ? `<div class="result-prize"><img src="${prize.icon}" title="${prize.name}"/><div style="font-size:0.75em;color:#ffd700;margin-top:4px">${prize.name}${bonusRedPacket > 0 ? `<br/><span style="color:#ff6b6b;font-size:1.1em">+ ${bonusRedPacket}元加码红包 🧧</span>` : ''}</div></div>` : ''}
           </div>
           <div class="result-event-log">${buildEventLogHTML(p)}</div>
         `).join('')}

@@ -87,6 +87,7 @@ const SYSTEM_EVENTS = [
   { id: 'sys_star_price_up', name: '📈 星星涨价', emoji: '📈', icon: _sysIcon('📈'), description: '场上所有星星价格上涨5金币！', color: '#ff6348' },
   { id: 'sys_star_price_down', name: '📉 星星降价', emoji: '📉', icon: _sysIcon('📉'), description: '场上所有星星价格下降5金币！', color: '#2ed573' },
   { id: 'sys_add_star', name: '🌟 额外星星', emoji: '🌟', icon: _sysIcon('🌟'), description: '场上出现第二颗星星！', color: '#f9ca24' },
+  { id: 'sys_get_coin', name: '💰 获得一个金币', emoji: '💰', icon: _sysIcon('💰'), description: '获得一个金币！', color: '#f1c40f' },
 ]
 
 // === 金币事件池（-3 到 8） ===
@@ -100,6 +101,16 @@ for (let i = -3; i <= 8; i++) {
     amount: i,
   })
 }
+
+// === 加码红包事件池（5, 10, 20, 50, 100） ===
+const _redPacketIcon = (amount) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="22" y="15" width="56" height="70" rx="5" fill="#e74c3c"/><rect x="22" y="42" width="56" height="8" fill="#c0392b"/><circle cx="50" cy="46" r="14" fill="#f39c12" stroke="#c0392b" stroke-width="2"/><text x="50" y="52" text-anchor="middle" font-size="${amount >= 100 ? 10 : 12}" fill="#c0392b" font-weight="bold">${amount}</text></svg>`)}`
+const BONUS_RED_PACKET_POOL = [
+  { id: 'bonus_5', name: '5元红包', icon: _redPacketIcon(5), amount: 5 },
+  { id: 'bonus_10', name: '10元红包', icon: _redPacketIcon(10), amount: 10 },
+  { id: 'bonus_20', name: '20元红包', icon: _redPacketIcon(20), amount: 20 },
+  { id: 'bonus_50', name: '50元红包', icon: _redPacketIcon(50), amount: 50 },
+  { id: 'bonus_100', name: '100元红包', icon: _redPacketIcon(100), amount: 100 },
+]
 
 // === 偷取金币事件池（1 到 8） ===
 const STEAL_COIN_EVENTS = []
@@ -200,6 +211,9 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   // 星星价格（可涨价，购买后恢复原价10）
   let starPrice = savedState ? (savedState.starPrice || 10) : 10
 
+  // 加码红包累计
+  let bonusRedPacket = savedState ? (savedState.bonusRedPacket || 0) : 0
+
   // 最后三轮状态
   let starPos2 = savedState ? savedState.starPos2 : -1           // 第二颗星位置 (-1 = 未激活)
   let star2Active = savedState ? savedState.star2Active : false     // 第二颗星是否激活
@@ -218,6 +232,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
       star2Active,
       isLastThreeRounds,
       starPrice,
+      bonusRedPacket,
     })
   }
 
@@ -1112,6 +1127,23 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
     })
   }
 
+  // ===== 金币不足弹窗 =====
+  function showNotEnoughCoins(player, cost) {
+    return new Promise(resolve => {
+      playCoinLoss()
+      const ov = document.createElement('div')
+      ov.className = 'not-enough-coins-popup'
+      ov.innerHTML = `
+        <div class="nec-content">
+          <div class="nec-icon">💸</div>
+          <div class="nec-title">金币不足！</div>
+          <div class="nec-detail">需要 ${cost} 💰，当前只有 ${player.coins} 💰</div>
+        </div>`
+      document.body.appendChild(ov)
+      setTimeout(() => { ov.remove(); resolve() }, 1800)
+    })
+  }
+
   // ===== 金币弹窗 =====
   function showCoinPopup(player, amount) {
     return new Promise(resolve => {
@@ -1347,6 +1379,8 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         updateInfoPanel(); updatePlayersPanel()
         await showStarPopup(p, cost)
         moveStar()
+      } else if (p.position === starPos && p.coins < starPrice) {
+        await showNotEnoughCoins(p, starPrice)
       }
       // 检查星星2（最后三轮激活）
       if (star2Active && p.position === starPos2 && p.coins >= starPrice) {
@@ -1364,6 +1398,8 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         if (candidates.length > 0) {
           showStar2(candidates[Math.floor(Math.random() * candidates.length)])
         }
+      } else if (star2Active && p.position === starPos2 && p.coins < starPrice) {
+        await showNotEnoughCoins(p, starPrice)
       }
     }
   }
@@ -1386,6 +1422,8 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         updateInfoPanel(); updatePlayersPanel()
         await showStarPopup(p, cost)
         moveStar()
+      } else if (p.position === starPos && p.coins < starPrice) {
+        await showNotEnoughCoins(p, starPrice)
       }
       // 检查星星2（最后三轮激活）
       if (star2Active && p.position === starPos2 && p.coins >= starPrice) {
@@ -1403,6 +1441,8 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         if (candidates.length > 0) {
           showStar2(candidates[Math.floor(Math.random() * candidates.length)])
         }
+      } else if (star2Active && p.position === starPos2 && p.coins < starPrice) {
+        await showNotEnoughCoins(p, starPrice)
       }
     }
   }
@@ -1526,6 +1566,13 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         }
         break
       }
+      case 'sys_get_coin': {
+        p.coins += 1
+        await showSystemEventResult(sysEvent, `${p.name} 获得了1个金币！当前金币: ${p.coins}`)
+        playCoinGain()
+        updateInfoPanel(); updatePlayersPanel()
+        break
+      }
       case 'sys_steal_coins': {
         const others = players.filter((_, i) => i !== pi)
         if (others.length === 0) {
@@ -1646,6 +1693,26 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
           // 递归处理落地事件
           await handleTileLanding(pi)
         }
+
+        // NPC系统事件：加码红包
+        if (ev.type === 'npc_system' && (ev.name.includes('加码') || ev.description.includes('加码'))) {
+          setHint(`${targetNpc ? targetNpc.name : 'NPC'} 正在加码红包...`)
+          await sleep(500)
+
+          const bonusEv = await showRoller(
+            `🧧 ${targetNpc ? targetNpc.name : 'NPC'}加码红包抽取中...`,
+            BONUS_RED_PACKET_POOL, 5, targetNpc, p
+          )
+          if (bonusEv) {
+            bonusRedPacket += bonusEv.amount
+            await showSystemEventResult({
+              emoji: '🧧',
+              name: `获得${bonusEv.amount}元加码红包！`,
+              description: `${targetNpc ? targetNpc.name : 'NPC'}为最终大奖加码了${bonusEv.amount}元红包！`,
+              color: '#e74c3c',
+            }, `累计加码红包: ${bonusRedPacket}元 🧧`)
+          }
+        }
       }
     }
   }
@@ -1764,7 +1831,7 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
           await sleep(500)
           // 清理键盘事件
           document.removeEventListener('keydown', onKeyDown)
-          navigate('results', { players })
+          navigate('results', { players, bonusRedPacket })
           return
         }
 

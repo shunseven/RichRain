@@ -52,6 +52,7 @@ const DEFAULT_EVENTS = [
   { id: genId(), name: '扫地三次', icon: EVENT_ICONS.saodi, type: 'punishment', description: '需要扫地三次' },
   { id: genId(), name: '唱一首歌', icon: EVENT_ICONS.sing, type: 'punishment', description: '为大家唱一首歌' },
   { id: genId(), name: '选一个多肉零食', icon: EVENT_ICONS.duoroulingshi, type: 'reward', description: '从多肉零食中选一个自己喜欢的' },
+  { id: genId(), name: '要指定零食', icon: NPC_EVENT_ICONS.yaolingshi, type: 'reward', description: '可以选择一个指定的零食' },
 ]
 
 const DEFAULT_NPC_EVENTS = [
@@ -61,8 +62,7 @@ const DEFAULT_NPC_EVENTS = [
   { id: genId(), name: '给NPC红包', icon: NPC_EVENT_ICONS.geihongbao, type: 'punishment', description: '给NPC发红包' },
   { id: genId(), name: '小游戏代玩', icon: NPC_EVENT_ICONS.daiwan, type: 'reward', description: '请求下一次小游戏由NPC代玩' },
   { id: genId(), name: '送寒假练习题', icon: NPC_EVENT_ICONS.lianxiti, type: 'reward', description: '送一本寒假练习题' },
-  { id: genId(), name: '要指定零食', icon: NPC_EVENT_ICONS.yaolingshi, type: 'reward', description: '向NPC要一个指定的零食' },
-  { id: genId(), name: '请求加码最终大奖', icon: NPC_EVENT_ICONS.jiamadajiang, type: 'reward', description: '请求NPC为最终赢家加红包、玩具或零食' },
+  { id: genId(), name: '加码最终大奖', icon: NPC_EVENT_ICONS.jiamadajiang, type: 'npc_system', description: '请求NPC为最终赢家加码红包' },
   { id: genId(), name: '帮忙再摇一次', icon: SYSTEM_ICONS.dice, type: 'npc_system', description: 'NPC帮你再摇一次骰子' },
 ]
 
@@ -78,119 +78,7 @@ class Store {
   }
 
   _init() {
-    if (!localStorage.getItem('rr_characters')) {
-      this.saveCharacters(DEFAULT_CHARACTERS)
-    }
-    if (!localStorage.getItem('rr_npcs')) {
-      this.saveNpcs(DEFAULT_NPCS)
-    }
-    if (!localStorage.getItem('rr_minigames')) {
-      this.saveMiniGames(DEFAULT_MINIGAMES)
-    } else {
-      // 迁移：为已有小游戏添加 guaranteeFirst 和 hasTriggered 字段
-      let currentGames = this.getMiniGames()
-      let gamesChanged = false
-      const guaranteeFirstNames = ['保龄球', '射击比赛', '海盗插剑', '咬手鳄鱼']
-      currentGames.forEach(g => {
-        if (g.guaranteeFirst === undefined) {
-          g.guaranteeFirst = guaranteeFirstNames.includes(g.name)
-          gamesChanged = true
-        }
-        if (g.hasTriggered === undefined) {
-          g.hasTriggered = false
-          gamesChanged = true
-        }
-      })
-      if (gamesChanged) this.saveMiniGames(currentGames)
-    }
-    if (!localStorage.getItem('rr_events')) {
-      this.saveEvents(DEFAULT_EVENTS)
-    } else {
-      // 检查是否需要更新事件列表（例如替换旧的红包事件）
-      let current = this.getEvents()
-      let changed = false
-      
-      // 更新现有事件的图标
-      DEFAULT_EVENTS.forEach(def => {
-        const existing = current.find(e => e.name === def.name)
-        if (existing) {
-          if (existing.icon !== def.icon) {
-             existing.icon = def.icon
-             changed = true
-          }
-        }
-      })
-
-      // 移除旧的通用"红包"事件
-      const oldRedPacketIdx = current.findIndex(e => e.name === '红包')
-      if (oldRedPacketIdx !== -1) {
-        current.splice(oldRedPacketIdx, 1)
-        changed = true
-      }
-
-      // 移除旧的"小零食"事件
-      const oldSnackIdx = current.findIndex(e => e.name === '小零食')
-      if (oldSnackIdx !== -1) {
-        current.splice(oldSnackIdx, 1)
-        changed = true
-      }
-
-      // 添加新的零食事件（如果不存在）
-      const newSnacks = DEFAULT_EVENTS.filter(def => ['火鸡面', '辣条', '薯片', '抽零食', '选一个多肉零食'].includes(def.name))
-      newSnacks.forEach(def => {
-        if (!current.find(e => e.name === def.name)) {
-          current.push(def)
-          changed = true
-        }
-      })
-
-      // 添加新的红包事件（如果不存在）
-      const newEvents = DEFAULT_EVENTS.filter(def => def.name.includes('元红包'))
-      newEvents.forEach(def => {
-        if (!current.find(e => e.name === def.name)) {
-          current.push(def)
-          changed = true
-        }
-      })
-
-      // 添加新的惩罚事件（如果不存在）
-      const newPunishments = DEFAULT_EVENTS.filter(def => ['喝一次歌'].includes(def.name))
-      newPunishments.forEach(def => {
-        if (!current.find(e => e.name === def.name)) {
-          current.push(def)
-          changed = true
-        }
-      })
-
-      if (changed) this.saveEvents(current)
-    }
-    if (!localStorage.getItem('rr_npcevents')) {
-      this.saveNpcEvents(DEFAULT_NPC_EVENTS)
-    } else {
-      // 检查 NPC 事件更新
-      let current = this.getNpcEvents()
-      let changed = false
-      
-      // 更新现有事件的图标或添加新事件
-      DEFAULT_NPC_EVENTS.forEach(def => {
-        const existing = current.find(e => e.name === def.name)
-        if (existing) {
-          if (existing.icon !== def.icon) {
-             existing.icon = def.icon
-             changed = true
-          }
-        } else {
-             // 添加新事件（例如：一起跳舞）
-             current.push(def)
-             changed = true
-        }
-      })
-
-      if (changed) this.saveNpcEvents(current)
-    }
-    if (!localStorage.getItem('rr_finalprize')) {
-      this.saveFinalPrize(DEFAULT_FINAL_PRIZE)
-    }
+    // 不自动写入默认数据，由用户手动初始化
   }
 
   // 角色
@@ -232,16 +120,15 @@ class Store {
   getFinalPrize() { return JSON.parse(localStorage.getItem('rr_finalprize') || '{}') }
   saveFinalPrize(data) { localStorage.setItem('rr_finalprize', JSON.stringify(data)) }
 
-  // 重置所有数据
+  // 恢复默认数据
   resetAll() {
-    localStorage.removeItem('rr_characters')
-    localStorage.removeItem('rr_npcs')
-    localStorage.removeItem('rr_minigames')
-    localStorage.removeItem('rr_events')
-    localStorage.removeItem('rr_npcevents')
-    localStorage.removeItem('rr_finalprize')
+    this.saveCharacters(DEFAULT_CHARACTERS)
+    this.saveNpcs(DEFAULT_NPCS)
+    this.saveMiniGames(DEFAULT_MINIGAMES)
+    this.saveEvents(DEFAULT_EVENTS)
+    this.saveNpcEvents(DEFAULT_NPC_EVENTS)
+    this.saveFinalPrize(DEFAULT_FINAL_PRIZE)
     localStorage.removeItem('rr_game_progress')
-    this._init()
   }
 
   // 重置小游戏剩余次数(游戏开始时)
