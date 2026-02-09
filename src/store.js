@@ -27,7 +27,7 @@ const DEFAULT_MINIGAMES = [
   { id: genId(), name: '石头剪刀布', icon: GAME_ICONS.shitoujiandaobu, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '最终胜者获胜', guaranteeFirst: false, hasTriggered: false },
   { id: genId(), name: '抽卡比大小', icon: GAME_ICONS.bidaxiao, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '抽到最大数字的人获胜', guaranteeFirst: false, hasTriggered: false },
   { id: genId(), name: '保龄球', icon: GAME_ICONS.baolingqiu, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '倒下最多的赢（三次机会）', guaranteeFirst: true, hasTriggered: false },
-  { id: genId(), name: '射击比赛', icon: GAME_ICONS.sheji, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '分数最高的赢（三次机会）', guaranteeFirst: true, hasTriggered: false },
+  { id: genId(), name: '射击比赛', icon: GAME_ICONS.sheji, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '分数最高的赢（五次机会）', guaranteeFirst: true, hasTriggered: false },
   { id: genId(), name: '海盗插剑', icon: GAME_ICONS.haidao, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '插中机关的输', guaranteeFirst: true, hasTriggered: false },
   { id: genId(), name: '咬手鳄鱼', icon: GAME_ICONS.eyu, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '咬中的输', guaranteeFirst: true, hasTriggered: false },
   { id: genId(), name: '抢保龄球', icon: GAME_ICONS.baolingqiu, probability: 50, maxCount: 100, remainingCount: 100, winCondition: '谁先抢到谁，谁赢', guaranteeFirst: false, hasTriggered: false },
