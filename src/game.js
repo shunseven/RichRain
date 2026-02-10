@@ -778,19 +778,25 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
           resolve()
         }
       }, 5000)
-      // 也支持按 Enter 键提前关闭
-      const handler = (e) => {
-        if (e.code === 'Enter') {
-          document.removeEventListener('keydown', handler)
-          if (ov.parentNode) {
-            ov.remove()
-            resolve()
-          }
+      // 也支持按 Enter 键或点击屏幕提前关闭
+      const closeHandler = () => {
+        document.removeEventListener('keydown', keyHandler)
+        if (ov.parentNode) {
+          ov.removeEventListener('click', closeHandler)
+          ov.remove()
+          resolve()
         }
       }
-      document.addEventListener('keydown', handler)
-      // 5秒后清理键盘监听
-      setTimeout(() => document.removeEventListener('keydown', handler), 5100)
+      const keyHandler = (e) => {
+        if (e.code === 'Enter') closeHandler()
+      }
+      document.addEventListener('keydown', keyHandler)
+      setTimeout(() => ov.addEventListener('click', closeHandler), 300)
+      // 5秒后清理监听
+      setTimeout(() => {
+        document.removeEventListener('keydown', keyHandler)
+        if (ov.parentNode) ov.removeEventListener('click', closeHandler)
+      }, 5100)
     })
   }
 
@@ -1105,14 +1111,21 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
             ${typeLabel}
           </div>
           <div style="color:rgba(255,255,255,0.7);margin-top:10px;font-size:1.1em">${event.description || ''}</div>
-          <div class="continue-hint" style="margin-top:20px">按 Enter 键继续</div>
+          <div class="continue-hint" style="margin-top:20px">按 Enter 键或点击屏幕继续</div>
         </div>`
       document.body.appendChild(ov)
       resolveAllImages(ov)
-      const handler = (e) => {
-        if (e.code === 'Enter') { document.removeEventListener('keydown', handler); ov.remove(); resolve() }
+      const closeHandler = () => {
+        document.removeEventListener('keydown', keyHandler)
+        ov.removeEventListener('click', closeHandler)
+        ov.remove()
+        resolve()
       }
-      document.addEventListener('keydown', handler)
+      const keyHandler = (e) => {
+        if (e.code === 'Enter') closeHandler()
+      }
+      document.addEventListener('keydown', keyHandler)
+      setTimeout(() => ov.addEventListener('click', closeHandler), 300)
     })
   }
 
@@ -1228,8 +1241,8 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
                 <div class="rank-badge" id="badge-${i}"></div>
               </div>`).join('')}
           </div>
-          <button class="btn-confirm-winner" id="btn-confirm-winner" style="margin-top:20px;padding:10px 20px;font-size:1.2em;border-radius:5px;border:none;background:#f1c40f;color:#c0392b;font-weight:bold;cursor:pointer;">确认胜利者 (Enter)</button>
-          <div class="rank-instruction" id="rank-inst" style="margin-top:10px;display:none;">按 Enter 键继续</div>
+          <button class="btn-confirm-winner" id="btn-confirm-winner" style="margin-top:20px;padding:10px 20px;font-size:1.2em;border-radius:5px;border:none;background:#f1c40f;color:#c0392b;font-weight:bold;cursor:pointer;">确认胜利者</button>
+          <div class="rank-instruction" id="rank-inst" style="margin-top:10px;display:none;">按 Enter 键或点击屏幕继续</div>
         </div>`
       document.body.appendChild(ov)
       resolveAllImages(ov)
@@ -1319,12 +1332,22 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
         })
 
         rankInst.style.display = 'block'
-        rankInst.textContent = '🎊 选择完成！按 Enter 键继续'
+        rankInst.textContent = '🎊 选择完成！按 Enter 键或点击屏幕继续'
 
-        const handler = (e) => {
-          if (e.code === 'Enter') { document.removeEventListener('keydown', handler); ov.remove(); resolve() }
+        const closeHandler = () => {
+          document.removeEventListener('keydown', keyHandler)
+          ov.removeEventListener('click', closeHandler)
+          ov.remove()
+          resolve()
         }
-        document.addEventListener('keydown', handler)
+        const keyHandler = (e) => {
+          if (e.code === 'Enter') closeHandler()
+        }
+        document.addEventListener('keydown', keyHandler)
+        // 延迟绑定点击关闭，防止误触和事件冒泡导致的立即关闭
+        setTimeout(() => {
+          ov.addEventListener('click', closeHandler)
+        }, 500)
       }
 
       ov.querySelectorAll('.rank-player').forEach(el => {
@@ -1467,13 +1490,20 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
           <div class="event-name" style="color:${sysEvent.color}">${sysEvent.name}</div>
           <div style="color:rgba(255,255,255,0.8);font-size:1.2em;margin:15px 0">${sysEvent.description}</div>
           ${extraInfo ? `<div style="color:${sysEvent.color};font-size:1.1em;margin-bottom:10px">${extraInfo}</div>` : ''}
-          <div class="continue-hint" style="margin-top:20px">按 Enter 键继续</div>
+          <div class="continue-hint" style="margin-top:20px">按 Enter 键或点击屏幕继续</div>
         </div>`
       document.body.appendChild(ov)
-      const handler = (e) => {
-        if (e.code === 'Enter') { document.removeEventListener('keydown', handler); ov.remove(); resolve() }
+      const closeHandler = () => {
+        document.removeEventListener('keydown', keyHandler)
+        ov.removeEventListener('click', closeHandler)
+        ov.remove()
+        resolve()
       }
-      document.addEventListener('keydown', handler)
+      const keyHandler = (e) => {
+        if (e.code === 'Enter') closeHandler()
+      }
+      document.addEventListener('keydown', keyHandler)
+      setTimeout(() => ov.addEventListener('click', closeHandler), 300)
     })
   }
 
@@ -1790,68 +1820,88 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
     // 保存初始进度
     saveProgress()
 
-    setHint(`轮到 ${players[currentPI].name}，按 Enter 摇骰子 🎲`)
+    setHint(`轮到 ${players[currentPI].name}，按 Enter 或点击屏幕摇骰子 🎲`)
     phase = 'waiting_dice'
+  }
+
+  // ===== 摇骰子逻辑 =====
+  async function handleDiceRoll() {
+    if (phase !== 'waiting_dice') return
+    phase = 'rolling'
+    playClick()  // 🔊 按键音效
+    setHint('摇骰子中...')
+    const dice = await rollDice(players[currentPI])
+    setHint(`${players[currentPI].name} 摇到了 ${dice}！移动中...`)
+    await sleep(300)
+
+    // 移动
+    phase = 'moving'
+    await movePlayer(currentPI, dice)
+
+    // 处理格子事件
+    phase = 'event'
+    await handleTileLanding(currentPI)
+
+    // 下一个玩家
+    currentPI++
+    if (currentPI >= players.length) {
+      // 一轮结束 → 小游戏
+      currentPI = 0
+      phase = 'minigame'
+      await miniGamePhase()
+
+      // 检查游戏是否结束
+      currentRound++
+      if (currentRound > totalRounds) {
+        phase = 'gameover'
+        store.clearGameProgress()  // 🗑️ 游戏正常结束，清除存档
+        stopBGM()  // 🔊 停止背景音乐
+        playGameOver()  // 🔊 游戏结束音效
+        clearInterval(starPulseTimer)  // 清理星星动画
+        await sleep(500)
+        // 清理事件
+        document.removeEventListener('keydown', onKeyDown)
+        document.removeEventListener('click', onGameClick)
+        navigate('results', { players, bonusRedPacket })
+        return
+      }
+
+      // 检查是否进入最后三轮
+      if (!isLastThreeRounds && currentRound >= totalRounds - 2 && totalRounds > 3) {
+        await activateLastThreeRounds()
+      }
+    }
+
+    // 保存游戏进度
+    saveProgress()
+
+    // 继续游戏
+    phase = 'waiting_dice'
+    updateInfoPanel(); updatePlayersPanel()
+    setHint(`轮到 ${players[currentPI].name}，按 Enter 或点击屏幕摇骰子 🎲`)
   }
 
   // ===== 键盘事件 =====
   async function onKeyDown(e) {
     if (phase === 'waiting_dice' && e.code === 'Enter') {
-      phase = 'rolling'
-      playClick()  // 🔊 按键音效
-      setHint('摇骰子中...')
-      const dice = await rollDice(players[currentPI])
-      setHint(`${players[currentPI].name} 摇到了 ${dice}！移动中...`)
-      await sleep(300)
+      await handleDiceRoll()
+    }
+  }
 
-      // 移动
-      phase = 'moving'
-      await movePlayer(currentPI, dice)
-
-      // 处理格子事件
-      phase = 'event'
-      await handleTileLanding(currentPI)
-
-      // 下一个玩家
-      currentPI++
-      if (currentPI >= players.length) {
-        // 一轮结束 → 小游戏
-        currentPI = 0
-        phase = 'minigame'
-        await miniGamePhase()
-
-        // 检查游戏是否结束
-        currentRound++
-        if (currentRound > totalRounds) {
-          phase = 'gameover'
-          store.clearGameProgress()  // 🗑️ 游戏正常结束，清除存档
-          stopBGM()  // 🔊 停止背景音乐
-          playGameOver()  // 🔊 游戏结束音效
-          clearInterval(starPulseTimer)  // 清理星星动画
-          await sleep(500)
-          // 清理键盘事件
-          document.removeEventListener('keydown', onKeyDown)
-          navigate('results', { players, bonusRedPacket })
-          return
-        }
-
-        // 检查是否进入最后三轮
-        if (!isLastThreeRounds && currentRound >= totalRounds - 2 && totalRounds > 3) {
-          await activateLastThreeRounds()
-        }
-      }
-
-      // 保存游戏进度
-      saveProgress()
-
-      // 继续游戏
-      phase = 'waiting_dice'
-      updateInfoPanel(); updatePlayersPanel()
-      setHint(`轮到 ${players[currentPI].name}，按 Enter 摇骰子 🎲`)
+  // ===== 点击事件 =====
+  async function onGameClick(e) {
+    // 忽略按钮点击，避免冲突
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return
+    // 忽略输入框
+    if (e.target.tagName === 'INPUT') return
+    
+    if (phase === 'waiting_dice') {
+      await handleDiceRoll()
     }
   }
 
   document.addEventListener('keydown', onKeyDown)
+  document.addEventListener('click', onGameClick)
 
   // 初始化音频并启动背景音乐
   initAudio()
