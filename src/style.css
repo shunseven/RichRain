@@ -846,6 +846,8 @@ body {
 .game-canvas-container {
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 10;
 }
 
 /* 头像覆盖层 - 用于在格子外显示NPC和角色头像 */
@@ -1731,8 +1733,18 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: url('/ed-bg.png') center/cover no-repeat;
+  /* background: url('/ed-bg.png') center/cover no-repeat; */
   position: relative;
+  overflow: hidden;
+}
+
+.result-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .result-screen h1 {

@@ -239,6 +239,9 @@ export function startGame(container, navigate, totalRounds, diceMode = 'auto', s
   // ===== DOM 结构 =====
   container.innerHTML = `
     <div class="game-screen">
+      <video class="bg-video" autoplay loop muted playsinline>
+        <source src="/bg.mp4" type="video/mp4">
+      </video>
       <div class="festive-lantern left">🏮</div>
       <div class="festive-lantern right">🏮</div>
       <div class="festive-particles" id="festive-particles"></div>

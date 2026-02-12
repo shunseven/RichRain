@@ -227,22 +227,27 @@ function showResults(params = {}) {
 
   app.innerHTML = `
     <div class="result-screen">
-      <h1>🏆 游戏结束 🏆</h1>
-      <div class="result-list">
-        ${sorted.map((p, i) => `
-          <div class="result-item">
-            <div class="rank-num">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</div>
-            <div class="result-avatar"><img src="${p.avatar}" alt="${p.name}"/></div>
-            <div class="result-info">
-              <div class="result-name">${p.name}</div>
-              <div class="result-stats">⭐ ${p.stars} 星  |  💰 ${p.coins} 金币</div>
+      <video class="bg-video" autoplay loop muted playsinline>
+        <source src="/ed-bg.mp4" type="video/mp4">
+      </video>
+      <div class="result-content">
+        <h1>🏆 游戏结束 🏆</h1>
+        <div class="result-list">
+          ${sorted.map((p, i) => `
+            <div class="result-item">
+              <div class="rank-num">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</div>
+              <div class="result-avatar"><img src="${p.avatar}" alt="${p.name}"/></div>
+              <div class="result-info">
+                <div class="result-name">${p.name}</div>
+                <div class="result-stats">⭐ ${p.stars} 星  |  💰 ${p.coins} 金币</div>
+              </div>
+              ${i === 0 ? `<div class="result-prize"><img src="${prize.icon}" title="${prize.name}"/><div style="font-size:0.75em;color:#ffd700;margin-top:4px">${prize.name}${bonusRedPacket > 0 ? `<br/><span style="color:#ff6b6b;font-size:1.1em">+ ${bonusRedPacket}元加码红包 🧧</span>` : ''}</div></div>` : ''}
             </div>
-            ${i === 0 ? `<div class="result-prize"><img src="${prize.icon}" title="${prize.name}"/><div style="font-size:0.75em;color:#ffd700;margin-top:4px">${prize.name}${bonusRedPacket > 0 ? `<br/><span style="color:#ff6b6b;font-size:1.1em">+ ${bonusRedPacket}元加码红包 🧧</span>` : ''}</div></div>` : ''}
-          </div>
-          <div class="result-event-log">${buildEventLogHTML(p)}</div>
-        `).join('')}
+            <div class="result-event-log">${buildEventLogHTML(p)}</div>
+          `).join('')}
+        </div>
+        <button class="btn-home" id="btn-go-home">返回主菜单</button>
       </div>
-      <button class="btn-home" id="btn-go-home">返回主菜单</button>
     </div>
   `
 
