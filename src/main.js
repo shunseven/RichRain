@@ -197,23 +197,55 @@ function showRoundSetup() {
     
     // 隐藏UI并显示加载中
     app.innerHTML = `
-      <div style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        width: 100vw;
+      <div class="loading-overlay" style="
         position: fixed;
         top: 0;
         left: 0;
+        width: 100%;
+        height: 100%;
         z-index: 100;
-        color: #ffd700;
-        font-size: 32px;
-        font-weight: bold;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.8);
-        letter-spacing: 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 15vh;
+        pointer-events: none;
       ">
-        游戏加载中...
+        <div style="
+          background: rgba(42, 10, 10, 0.85);
+          border: 3px solid #ffd700;
+          border-radius: 50px;
+          padding: 15px 40px;
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.1);
+          backdrop-filter: blur(5px);
+          animation: slideDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        ">
+          <span style="font-size: 36px; animation: spin 2s linear infinite; display: inline-block;">🎲</span>
+          <div style="
+            color: #ffd700;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 4px;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(to bottom, #ffd700, #ffaa00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+          ">
+            游戏加载中...
+          </div>
+        </div>
+        
+        <style>
+          @keyframes spin { 100% { transform: rotate(360deg); } }
+          @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        </style>
       </div>
     `
     
