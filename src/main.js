@@ -211,6 +211,9 @@ function showRoundSetup() {
         padding-top: 15vh;
         pointer-events: none;
       ">
+        <div class="menu-super-title" style="margin-bottom: 5px; font-size: 1.8em; animation-duration: 4s;">🧧 红包雨3.0 🧧</div>
+        <div class="menu-title" style="margin-bottom: 25px; font-size: 3em; animation-duration: 4s;">🎉 新春派对大富翁 🎉</div>
+        
         <div style="
           background: rgba(42, 10, 10, 0.85);
           border: 3px solid #ffd700;
